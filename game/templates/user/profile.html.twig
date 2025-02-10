@@ -1,0 +1,47 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Profile{% endblock %}
+
+{% block body %}
+<h2>Your Profile</h2>
+
+{% if user.profilePicture %}
+    <img src="{{ asset('uploads/profile_pictures/' ~ user.profilePicture) }}" alt="Profile Picture" width="150">
+{% else %}
+    <p>No profile picture uploaded.</p>
+{% endif %}
+
+<p><strong>Username:</strong> {{ user.username }}</p>
+<p><strong>Email:</strong> {{ user.email }}</p>
+<p><strong>Gender:</strong> {{ user.gender ?: 'Not specified' }}</p>
+<p><strong>Birthday:</strong> {{ user.birthday ? user.birthday|date('Y-m-d') : 'Not specified' }}</p>
+
+<h3>Update Profile</h3>
+<form method="post" enctype="multipart/form-data">
+    <label>Change Username:</label>
+    <input type="text" name="username" value="{{ user.username }}"><br>
+
+    <label>Change Profile Picture:</label>
+    <input type="file" name="profile_picture"><br>
+
+    <button type="submit">Update Profile</button>
+</form>
+
+<h3>Your Achievements</h3>
+<ul>
+    {% for achievement in user.achievements %}
+        <li>
+            <img src="{{ achievement.image }}" alt="{{ achievement.title }}" width="50">
+            {{ achievement.title }} - Achieved on {{ achievement.date|date('Y-m-d') }}
+        </li>
+    {% else %}
+        <p>No achievements earned yet.</p>
+    {% endfor %}
+</ul>
+
+<h3>Your Stats</h3>
+<p>Games Played: {{ user.gamesPlayed }}</p>
+<p>Best Score Ever: {{ user.bestScore }}</p>
+<p>Fastest Time: {{ user.bestTime }}</p>
+
+{% endblock %}

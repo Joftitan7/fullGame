@@ -1,0 +1,42 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Register{% endblock %}
+
+{% block body %}
+<h2>Register</h2>
+
+{#{% if error %}
+    <p style="color: red;">{{ error }}</p>
+{% endif %}#}
+
+<form method="post" enctype="multipart/form-data">
+    <label>Email:</label>
+    <input type="email" name="email" required><br>
+
+    <label>Username:</label>
+    <input type="text" name="username" required><br>
+
+    <label>Password:</label>
+    <input type="password" name="password" required><br>
+
+    <label>Confirm Password:</label>
+    <input type="password" name="confirm_password" required><br>
+
+    <label>Gender (Optional):</label>
+    <select name="gender">
+        <option value="">Prefer not to say</option>
+        <option value="male">Male</option>
+        <option value="female">Female</option>
+    </select><br>
+
+    <label>Birthday (Optional):</label>
+    <input type="date" name="birthday"><br>
+
+    <label>Profile Picture (Optional):</label>
+    <input type="file" name="profile_picture"><br>
+
+    <button type="submit">Register</button>
+</form>
+
+<p>Already have an account? <a href="{{ path('user_login') }}">Login here</a></p>
+{% endblock %}
