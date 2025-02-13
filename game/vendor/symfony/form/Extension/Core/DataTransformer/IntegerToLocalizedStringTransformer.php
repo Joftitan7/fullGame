@@ -25,23 +25,20 @@ class IntegerToLocalizedStringTransformer extends NumberToLocalizedStringTransfo
      * Constructs a transformer.
      *
      * @param bool        $grouping     Whether thousands should be grouped
-     * @param int         $roundingMode One of the ROUND_ constants in this class
+     * @param int|null    $roundingMode One of the ROUND_ constants in this class
      * @param string|null $locale       locale used for transforming
      */
-    public function __construct(?bool $grouping = false, ?int $roundingMode = \NumberFormatter::ROUND_DOWN, string $locale = null)
+    public function __construct(?bool $grouping = false, ?int $roundingMode = \NumberFormatter::ROUND_DOWN, ?string $locale = null)
     {
         parent::__construct(0, $grouping, $roundingMode, $locale);
     }
 
-    /**
-     * {@inheritdoc}
-     */
     public function reverseTransform(mixed $value): int|float|null
     {
         $decimalSeparator = $this->getNumberFormatter()->getSymbol(\NumberFormatter::DECIMAL_SEPARATOR_SYMBOL);
 
         if (\is_string($value) && str_contains($value, $decimalSeparator)) {
-            throw new TransformationFailedException(sprintf('The value "%s" is not a valid integer.', $value));
+            throw new TransformationFailedException(\sprintf('The value "%s" is not a valid integer.', $value));
         }
 
         $result = parent::reverseTransform($value);

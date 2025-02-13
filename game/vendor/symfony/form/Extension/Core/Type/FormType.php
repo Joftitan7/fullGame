@@ -24,13 +24,13 @@ use Symfony\Component\OptionsResolver\Options;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 use Symfony\Component\PropertyAccess\PropertyAccess;
 use Symfony\Component\PropertyAccess\PropertyAccessorInterface;
-use Symfony\Component\Translation\TranslatableMessage;
+use Symfony\Contracts\Translation\TranslatableInterface;
 
 class FormType extends BaseType
 {
     private DataMapper $dataMapper;
 
-    public function __construct(PropertyAccessorInterface $propertyAccessor = null)
+    public function __construct(?PropertyAccessorInterface $propertyAccessor = null)
     {
         $this->dataMapper = new DataMapper(new ChainAccessor([
             new CallbackAccessor(),
@@ -38,10 +38,7 @@ class FormType extends BaseType
         ]));
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function buildForm(FormBuilderInterface $builder, array $options)
+    public function buildForm(FormBuilderInterface $builder, array $options): void
     {
         parent::buildForm($builder, $options);
 
@@ -69,10 +66,7 @@ class FormType extends BaseType
         $builder->setIsEmptyCallback($options['is_empty_callback']);
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function buildView(FormView $view, FormInterface $form, array $options)
+    public function buildView(FormView $view, FormInterface $form, array $options): void
     {
         parent::buildView($view, $form, $options);
 
@@ -99,7 +93,6 @@ class FormType extends BaseType
             'value' => $form->getViewData(),
             'data' => $form->getNormData(),
             'required' => $form->isRequired(),
-            'size' => null,
             'label_attr' => $options['label_attr'],
             'help' => $options['help'],
             'help_attr' => $options['help_attr'],
@@ -112,10 +105,7 @@ class FormType extends BaseType
         ]);
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function finishView(FormView $view, FormInterface $form, array $options)
+    public function finishView(FormView $view, FormInterface $form, array $options): void
     {
         $multipart = false;
 
@@ -129,45 +119,30 @@ class FormType extends BaseType
         $view->vars['multipart'] = $multipart;
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function configureOptions(OptionsResolver $resolver)
+    public function configureOptions(OptionsResolver $resolver): void
     {
         parent::configureOptions($resolver);
 
         // Derive "data_class" option from passed "data" object
-        $dataClass = function (Options $options) {
-            return isset($options['data']) && \is_object($options['data']) ? \get_class($options['data']) : null;
-        };
+        $dataClass = static fn (Options $options) => isset($options['data']) && \is_object($options['data']) ? $options['data']::class : null;
 
         // Derive "empty_data" closure from "data_class" option
-        $emptyData = function (Options $options) {
+        $emptyData = static function (Options $options) {
             $class = $options['data_class'];
 
             if (null !== $class) {
-                return function (FormInterface $form) use ($class) {
-                    return $form->isEmpty() && !$form->isRequired() ? null : new $class();
-                };
+                return static fn (FormInterface $form) => $form->isEmpty() && !$form->isRequired() ? null : new $class();
             }
 
-            return function (FormInterface $form) {
-                return $form->getConfig()->getCompound() ? [] : '';
-            };
+            return static fn (FormInterface $form) => $form->getConfig()->getCompound() ? [] : '';
         };
 
         // Wrap "post_max_size_message" in a closure to translate it lazily
-        $uploadMaxSizeMessage = function (Options $options) {
-            return function () use ($options) {
-                return $options['post_max_size_message'];
-            };
-        };
+        $uploadMaxSizeMessage = static fn (Options $options) => static fn () => $options['post_max_size_message'];
 
         // For any form that is not represented by a single HTML control,
         // errors should bubble up by default
-        $errorBubbling = function (Options $options) {
-            return $options['compound'] && !$options['inherit_data'];
-        };
+        $errorBubbling = static fn (Options $options) => $options['compound'] && !$options['inherit_data'];
 
         // If data is given, the form is locked to that data
         // (independent of its value)
@@ -191,7 +166,6 @@ class FormType extends BaseType
             // According to RFC 2396 (http://www.ietf.org/rfc/rfc2396.txt)
             // section 4.2., empty URIs are considered same-document references
             'action' => '',
-            'attr' => [],
             'post_max_size_message' => 'The uploaded file was too large. Please try to upload a smaller file.',
             'upload_max_size_message' => $uploadMaxSizeMessage, // internal
             'allow_file_upload' => false,
@@ -209,7 +183,7 @@ class FormType extends BaseType
         $resolver->setAllowedTypes('label_attr', 'array');
         $resolver->setAllowedTypes('action', 'string');
         $resolver->setAllowedTypes('upload_max_size_message', ['callable']);
-        $resolver->setAllowedTypes('help', ['string', 'null', TranslatableMessage::class]);
+        $resolver->setAllowedTypes('help', ['string', 'null', TranslatableInterface::class]);
         $resolver->setAllowedTypes('help_attr', 'array');
         $resolver->setAllowedTypes('help_html', 'bool');
         $resolver->setAllowedTypes('is_empty_callback', ['null', 'callable']);
@@ -220,17 +194,11 @@ class FormType extends BaseType
         $resolver->setInfo('setter', 'A callable that accepts three arguments (a reference to the view data, the submitted value and the current form field).');
     }
 
-    /**
-     * {@inheritdoc}
-     */
     public function getParent(): ?string
     {
         return null;
     }
 
-    /**
-     * {@inheritdoc}
-     */
     public function getBlockPrefix(): string
     {
         return 'form';

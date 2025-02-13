@@ -26,15 +26,14 @@ use Symfony\Component\PropertyAccess\PropertyPathInterface;
 class Button implements \IteratorAggregate, FormInterface
 {
     private ?FormInterface $parent = null;
-    private FormConfigInterface $config;
     private bool $submitted = false;
 
     /**
      * Creates a new button from a form configuration.
      */
-    public function __construct(FormConfigInterface $config)
-    {
-        $this->config = $config;
+    public function __construct(
+        private FormConfigInterface $config,
+    ) {
     }
 
     /**
@@ -81,10 +80,7 @@ class Button implements \IteratorAggregate, FormInterface
         throw new BadMethodCallException('Buttons cannot have children.');
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function setParent(FormInterface $parent = null): static
+    public function setParent(?FormInterface $parent): static
     {
         if ($this->submitted) {
             throw new AlreadySubmittedException('You cannot set the parent of a submitted button.');
@@ -95,9 +91,6 @@ class Button implements \IteratorAggregate, FormInterface
         return $this;
     }
 
-    /**
-     * {@inheritdoc}
-     */
     public function getParent(): ?FormInterface
     {
         return $this->parent;
@@ -110,7 +103,7 @@ class Button implements \IteratorAggregate, FormInterface
      *
      * @throws BadMethodCallException
      */
-    public function add(string|FormInterface $child, string $type = null, array $options = []): static
+    public function add(string|FormInterface $child, ?string $type = null, array $options = []): static
     {
         throw new BadMethodCallException('Buttons cannot have children.');
     }
@@ -147,17 +140,11 @@ class Button implements \IteratorAggregate, FormInterface
         throw new BadMethodCallException('Buttons cannot have children.');
     }
 
-    /**
-     * {@inheritdoc}
-     */
     public function all(): array
     {
         return [];
     }
 
-    /**
-     * {@inheritdoc}
-     */
     public function getErrors(bool $deep = false, bool $flatten = true): FormErrorIterator
     {
         return new FormErrorIterator($this, []);
@@ -266,9 +253,6 @@ class Button implements \IteratorAggregate, FormInterface
         return false;
     }
 
-    /**
-     * {@inheritdoc}
-     */
     public function isDisabled(): bool
     {
         if ($this->parent?->isDisabled()) {
@@ -327,7 +311,7 @@ class Button implements \IteratorAggregate, FormInterface
      *
      * @return $this
      *
-     * @throws Exception\AlreadySubmittedException if the button has already been submitted
+     * @throws AlreadySubmittedException if the button has already been submitted
      */
     public function submit(array|string|null $submittedData, bool $clearMissing = true): static
     {
@@ -340,26 +324,17 @@ class Button implements \IteratorAggregate, FormInterface
         return $this;
     }
 
-    /**
-     * {@inheritdoc}
-     */
     public function getRoot(): FormInterface
     {
         return $this->parent ? $this->parent->getRoot() : $this;
     }
 
-    /**
-     * {@inheritdoc}
-     */
     public function isRoot(): bool
     {
         return null === $this->parent;
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function createView(FormView $parent = null): FormView
+    public function createView(?FormView $parent = null): FormView
     {
         if (null === $parent && $this->parent) {
             $parent = $this->parent->createView();

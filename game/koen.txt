@@ -1,0 +1,3 @@
+ga in git bash naar de public/ map
+php -S localhost:9010
+window niet sluit

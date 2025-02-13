@@ -33,21 +33,20 @@ abstract class AbstractAdapter implements AdapterInterface, CacheInterface, Logg
      */
     protected const NS_SEPARATOR = ':';
 
-    private static $apcuSupported;
-    private static $phpFilesSupported;
+    private static bool $apcuSupported;
 
     protected function __construct(string $namespace = '', int $defaultLifetime = 0)
     {
         $this->namespace = '' === $namespace ? '' : CacheItem::validateKey($namespace).static::NS_SEPARATOR;
         $this->defaultLifetime = $defaultLifetime;
         if (null !== $this->maxIdLength && \strlen($namespace) > $this->maxIdLength - 24) {
-            throw new InvalidArgumentException(sprintf('Namespace must be %d chars max, %d given ("%s").', $this->maxIdLength - 24, \strlen($namespace), $namespace));
+            throw new InvalidArgumentException(\sprintf('Namespace must be %d chars max, %d given ("%s").', $this->maxIdLength - 24, \strlen($namespace), $namespace));
         }
-        self::$createCacheItem ?? self::$createCacheItem = \Closure::bind(
+        self::$createCacheItem ??= \Closure::bind(
             static function ($key, $value, $isHit) {
                 $item = new CacheItem();
                 $item->key = $key;
-                $item->value = $v = $value;
+                $item->value = $value;
                 $item->isHit = $isHit;
                 $item->unpack();
 
@@ -56,7 +55,7 @@ abstract class AbstractAdapter implements AdapterInterface, CacheInterface, Logg
             null,
             CacheItem::class
         );
-        self::$mergeByLifetime ?? self::$mergeByLifetime = \Closure::bind(
+        self::$mergeByLifetime ??= \Closure::bind(
             static function ($deferred, $namespace, &$expiredIds, $getId, $defaultLifetime) {
                 $byLifetime = [];
                 $now = microtime(true);
@@ -87,18 +86,18 @@ abstract class AbstractAdapter implements AdapterInterface, CacheInterface, Logg
      *
      * Using ApcuAdapter makes system caches compatible with read-only filesystems.
      */
-    public static function createSystemCache(string $namespace, int $defaultLifetime, string $version, string $directory, LoggerInterface $logger = null): AdapterInterface
+    public static function createSystemCache(string $namespace, int $defaultLifetime, string $version, string $directory, ?LoggerInterface $logger = null): AdapterInterface
     {
         $opcache = new PhpFilesAdapter($namespace, $defaultLifetime, $directory, true);
         if (null !== $logger) {
             $opcache->setLogger($logger);
         }
 
-        if (!self::$apcuSupported = self::$apcuSupported ?? ApcuAdapter::isSupported()) {
+        if (!self::$apcuSupported ??= ApcuAdapter::isSupported()) {
             return $opcache;
         }
 
-        if (\in_array(\PHP_SAPI, ['cli', 'phpdbg'], true) && !filter_var(\ini_get('apc.enable_cli'), \FILTER_VALIDATE_BOOLEAN)) {
+        if ('cli' === \PHP_SAPI && !filter_var(\ini_get('apc.enable_cli'), \FILTER_VALIDATE_BOOL)) {
             return $opcache;
         }
 
@@ -110,7 +109,7 @@ abstract class AbstractAdapter implements AdapterInterface, CacheInterface, Logg
         return new ChainAdapter([$apcu, $opcache]);
     }
 
-    public static function createConnection(string $dsn, array $options = [])
+    public static function createConnection(#[\SensitiveParameter] string $dsn, array $options = []): mixed
     {
         if (str_starts_with($dsn, 'redis:') || str_starts_with($dsn, 'rediss:')) {
             return RedisAdapter::createConnection($dsn, $options);
@@ -119,19 +118,19 @@ abstract class AbstractAdapter implements AdapterInterface, CacheInterface, Logg
             return MemcachedAdapter::createConnection($dsn, $options);
         }
         if (str_starts_with($dsn, 'couchbase:')) {
-            if (CouchbaseBucketAdapter::isSupported()) {
+            if (class_exists('CouchbaseBucket') && CouchbaseBucketAdapter::isSupported()) {
                 return CouchbaseBucketAdapter::createConnection($dsn, $options);
             }
 
             return CouchbaseCollectionAdapter::createConnection($dsn, $options);
         }
+        if (preg_match('/^(mysql|oci|pgsql|sqlsrv|sqlite):/', $dsn)) {
+            return PdoAdapter::createConnection($dsn, $options);
+        }
 
-        throw new InvalidArgumentException(sprintf('Unsupported DSN: "%s".', $dsn));
+        throw new InvalidArgumentException('Unsupported DSN: it does not start with "redis[s]:", "memcached:", "couchbase:", "mysql:", "oci:", "pgsql:", "sqlsrv:" nor "sqlite:".');
     }
 
-    /**
-     * {@inheritdoc}
-     */
     public function commit(): bool
     {
         $ok = true;
@@ -159,7 +158,7 @@ abstract class AbstractAdapter implements AdapterInterface, CacheInterface, Logg
                     $ok = false;
                     $v = $values[$id];
                     $type = get_debug_type($v);
-                    $message = sprintf('Failed to save key "{key}" of type %s%s', $type, $e instanceof \Exception ? ': '.$e->getMessage() : '.');
+                    $message = \sprintf('Failed to save key "{key}" of type %s%s', $type, $e instanceof \Exception ? ': '.$e->getMessage() : '.');
                     CacheItem::log($this->logger, $message, ['key' => substr($id, \strlen($this->namespace)), 'exception' => $e instanceof \Exception ? $e : null, 'cache-adapter' => get_debug_type($this)]);
                 }
             } else {
@@ -182,7 +181,7 @@ abstract class AbstractAdapter implements AdapterInterface, CacheInterface, Logg
                 }
                 $ok = false;
                 $type = get_debug_type($v);
-                $message = sprintf('Failed to save key "{key}" of type %s%s', $type, $e instanceof \Exception ? ': '.$e->getMessage() : '.');
+                $message = \sprintf('Failed to save key "{key}" of type %s%s', $type, $e instanceof \Exception ? ': '.$e->getMessage() : '.');
                 CacheItem::log($this->logger, $message, ['key' => substr($id, \strlen($this->namespace)), 'exception' => $e instanceof \Exception ? $e : null, 'cache-adapter' => get_debug_type($this)]);
             }
         }

@@ -37,15 +37,12 @@ class PropertyMetadata extends MemberMetadata
     public function __construct(string $class, string $name)
     {
         if (!property_exists($class, $name)) {
-            throw new ValidatorException(sprintf('Property "%s" does not exist in class "%s".', $name, $class));
+            throw new ValidatorException(\sprintf('Property "%s" does not exist in class "%s".', $name, $class));
         }
 
         parent::__construct($class, $name, $name);
     }
 
-    /**
-     * {@inheritdoc}
-     */
     public function getPropertyValue(mixed $object): mixed
     {
         $reflProperty = $this->getReflectionMember($object);
@@ -70,18 +67,15 @@ class PropertyMetadata extends MemberMetadata
         return $reflProperty->getValue($object);
     }
 
-    /**
-     * {@inheritdoc}
-     */
     protected function newReflectionMember(object|string $objectOrClassName): \ReflectionMethod|\ReflectionProperty
     {
-        $originalClass = \is_string($objectOrClassName) ? $objectOrClassName : \get_class($objectOrClassName);
+        $originalClass = \is_string($objectOrClassName) ? $objectOrClassName : $objectOrClassName::class;
 
         while (!property_exists($objectOrClassName, $this->getName())) {
             $objectOrClassName = get_parent_class($objectOrClassName);
 
             if (false === $objectOrClassName) {
-                throw new ValidatorException(sprintf('Property "%s" does not exist in class "%s".', $this->getName(), $originalClass));
+                throw new ValidatorException(\sprintf('Property "%s" does not exist in class "%s".', $this->getName(), $originalClass));
             }
         }
 

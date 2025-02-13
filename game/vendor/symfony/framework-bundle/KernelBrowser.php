@@ -34,17 +34,11 @@ class KernelBrowser extends HttpKernelBrowser
     private bool $profiler = false;
     private bool $reboot = true;
 
-    /**
-     * {@inheritdoc}
-     */
-    public function __construct(KernelInterface $kernel, array $server = [], History $history = null, CookieJar $cookieJar = null)
+    public function __construct(KernelInterface $kernel, array $server = [], ?History $history = null, ?CookieJar $cookieJar = null)
     {
         parent::__construct($kernel, $server, $history, $cookieJar);
     }
 
-    /**
-     * Returns the container.
-     */
     public function getContainer(): ContainerInterface
     {
         $container = $this->kernel->getContainer();
@@ -52,9 +46,6 @@ class KernelBrowser extends HttpKernelBrowser
         return $container->has('test.service_container') ? $container->get('test.service_container') : $container;
     }
 
-    /**
-     * Returns the kernel.
-     */
     public function getKernel(): KernelInterface
     {
         return $this->kernel;
@@ -65,7 +56,7 @@ class KernelBrowser extends HttpKernelBrowser
      */
     public function getProfile(): HttpProfile|false|null
     {
-        if (null === $this->response || !$this->getContainer()->has('profiler')) {
+        if (!isset($this->response) || !$this->getContainer()->has('profiler')) {
             return false;
         }
 
@@ -77,7 +68,7 @@ class KernelBrowser extends HttpKernelBrowser
      *
      * If the profiler is not enabled, the call to this method does nothing.
      */
-    public function enableProfiler()
+    public function enableProfiler(): void
     {
         if ($this->getContainer()->has('profiler')) {
             $this->profiler = true;
@@ -90,7 +81,7 @@ class KernelBrowser extends HttpKernelBrowser
      * By default, the Client reboots the Kernel for each request. This method
      * allows to keep the same kernel across requests.
      */
-    public function disableReboot()
+    public function disableReboot(): void
     {
         $this->reboot = false;
     }
@@ -98,31 +89,29 @@ class KernelBrowser extends HttpKernelBrowser
     /**
      * Enables kernel reboot between requests.
      */
-    public function enableReboot()
+    public function enableReboot(): void
     {
         $this->reboot = true;
     }
 
     /**
-     * @param UserInterface $user
+     * @param UserInterface        $user
+     * @param array<string, mixed> $tokenAttributes
      *
      * @return $this
      */
-    public function loginUser(object $user, string $firewallContext = 'main'): static
+    public function loginUser(object $user, string $firewallContext = 'main', array $tokenAttributes = []): static
     {
         if (!interface_exists(UserInterface::class)) {
-            throw new \LogicException(sprintf('"%s" requires symfony/security-core to be installed.', __METHOD__));
+            throw new \LogicException(\sprintf('"%s" requires symfony/security-core to be installed. Try running "composer require symfony/security-core".', __METHOD__));
         }
 
         if (!$user instanceof UserInterface) {
-            throw new \LogicException(sprintf('The first argument of "%s" must be instance of "%s", "%s" provided.', __METHOD__, UserInterface::class, get_debug_type($user)));
+            throw new \LogicException(\sprintf('The first argument of "%s" must be instance of "%s", "%s" provided.', __METHOD__, UserInterface::class, get_debug_type($user)));
         }
 
         $token = new TestBrowserToken($user->getRoles(), $user, $firewallContext);
-        // required for compatibility with Symfony 5.4
-        if (method_exists($token, 'isAuthenticated')) {
-            $token->setAuthenticated(true, false);
-        }
+        $token->setAttributes($tokenAttributes);
 
         $container = $this->getContainer();
         $container->get('security.untracked_token_storage')->setToken($token);
@@ -135,9 +124,7 @@ class KernelBrowser extends HttpKernelBrowser
         $session->set('_security_'.$firewallContext, serialize($token));
         $session->save();
 
-        $domains = array_unique(array_map(function (Cookie $cookie) use ($session) {
-            return $cookie->getName() === $session->getName() ? $cookie->getDomain() : '';
-        }, $this->getCookieJar()->all())) ?: [''];
+        $domains = array_unique(array_map(fn (Cookie $cookie) => $cookie->getName() === $session->getName() ? $cookie->getDomain() : '', $this->getCookieJar()->all())) ?: [''];
         foreach ($domains as $domain) {
             $cookie = new Cookie($session->getName(), $session->getId(), null, null, $domain);
             $this->getCookieJar()->set($cookie);
@@ -147,8 +134,6 @@ class KernelBrowser extends HttpKernelBrowser
     }
 
     /**
-     * {@inheritdoc}
-     *
      * @param Request $request
      */
     protected function doRequest(object $request): Response
@@ -173,8 +158,6 @@ class KernelBrowser extends HttpKernelBrowser
     }
 
     /**
-     * {@inheritdoc}
-     *
      * @param Request $request
      */
     protected function doRequestInProcess(object $request): Response

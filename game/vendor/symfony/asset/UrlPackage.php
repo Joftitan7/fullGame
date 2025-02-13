@@ -41,7 +41,7 @@ class UrlPackage extends Package
     /**
      * @param string|string[] $baseUrls Base asset URLs
      */
-    public function __construct(string|array $baseUrls, VersionStrategyInterface $versionStrategy, ContextInterface $context = null)
+    public function __construct(string|array $baseUrls, VersionStrategyInterface $versionStrategy, ?ContextInterface $context = null)
     {
         parent::__construct($versionStrategy, $context);
 
@@ -64,9 +64,6 @@ class UrlPackage extends Package
         }
     }
 
-    /**
-     * {@inheritdoc}
-     */
     public function getUrl(string $path): string
     {
         if ($this->isAbsoluteUrl($path)) {
@@ -110,17 +107,17 @@ class UrlPackage extends Package
      */
     protected function chooseBaseUrl(string $path): int
     {
-        return (int) fmod(hexdec(substr(hash('sha256', $path), 0, 10)), \count($this->baseUrls));
+        return abs(crc32($path)) % \count($this->baseUrls);
     }
 
-    private function getSslUrls(array $urls)
+    private function getSslUrls(array $urls): array
     {
         $sslUrls = [];
         foreach ($urls as $url) {
             if (str_starts_with($url, 'https://') || str_starts_with($url, '//') || '' === $url) {
                 $sslUrls[] = $url;
-            } elseif (null === parse_url($url, \PHP_URL_SCHEME)) {
-                throw new InvalidArgumentException(sprintf('"%s" is not a valid URL.', $url));
+            } elseif (!parse_url($url, \PHP_URL_SCHEME)) {
+                throw new InvalidArgumentException(\sprintf('"%s" is not a valid URL.', $url));
             }
         }
 

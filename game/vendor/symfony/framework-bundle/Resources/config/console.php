@@ -33,21 +33,28 @@ use Symfony\Bundle\FrameworkBundle\Command\SecretsEncryptFromLocalCommand;
 use Symfony\Bundle\FrameworkBundle\Command\SecretsGenerateKeysCommand;
 use Symfony\Bundle\FrameworkBundle\Command\SecretsListCommand;
 use Symfony\Bundle\FrameworkBundle\Command\SecretsRemoveCommand;
+use Symfony\Bundle\FrameworkBundle\Command\SecretsRevealCommand;
 use Symfony\Bundle\FrameworkBundle\Command\SecretsSetCommand;
 use Symfony\Bundle\FrameworkBundle\Command\TranslationDebugCommand;
 use Symfony\Bundle\FrameworkBundle\Command\TranslationUpdateCommand;
 use Symfony\Bundle\FrameworkBundle\Command\WorkflowDumpCommand;
 use Symfony\Bundle\FrameworkBundle\Command\YamlLintCommand;
+use Symfony\Bundle\FrameworkBundle\Console\Application;
 use Symfony\Bundle\FrameworkBundle\EventListener\SuggestMissingPackageSubscriber;
 use Symfony\Component\Console\EventListener\ErrorListener;
+use Symfony\Component\Console\Messenger\RunCommandMessageHandler;
 use Symfony\Component\Dotenv\Command\DebugCommand as DotenvDebugCommand;
 use Symfony\Component\Messenger\Command\ConsumeMessagesCommand;
-use Symfony\Component\Messenger\Command\DebugCommand;
+use Symfony\Component\Messenger\Command\DebugCommand as MessengerDebugCommand;
 use Symfony\Component\Messenger\Command\FailedMessagesRemoveCommand;
 use Symfony\Component\Messenger\Command\FailedMessagesRetryCommand;
 use Symfony\Component\Messenger\Command\FailedMessagesShowCommand;
 use Symfony\Component\Messenger\Command\SetupTransportsCommand;
+use Symfony\Component\Messenger\Command\StatsCommand;
 use Symfony\Component\Messenger\Command\StopWorkersCommand;
+use Symfony\Component\Scheduler\Command\DebugCommand as SchedulerDebugCommand;
+use Symfony\Component\Serializer\Command\DebugCommand as SerializerDebugCommand;
+use Symfony\Component\Translation\Command\TranslationLintCommand;
 use Symfony\Component\Translation\Command\TranslationPullCommand;
 use Symfony\Component\Translation\Command\TranslationPushCommand;
 use Symfony\Component\Translation\Command\XliffLintCommand;
@@ -159,6 +166,8 @@ return static function (ContainerConfigurator $container) {
                 [], // Receiver names
                 service('messenger.listener.reset_services')->nullOnInvalid(),
                 [], // Bus names
+                service('messenger.rate_limiter_locator')->nullOnInvalid(),
+                null,
             ])
             ->tag('console.command')
             ->tag('monolog.logger', ['channel' => 'messenger'])
@@ -170,7 +179,7 @@ return static function (ContainerConfigurator $container) {
             ])
             ->tag('console.command')
 
-        ->set('console.command.messenger_debug', DebugCommand::class)
+        ->set('console.command.messenger_debug', MessengerDebugCommand::class)
             ->args([
                 [], // Message to handlers mapping
             ])
@@ -188,14 +197,18 @@ return static function (ContainerConfigurator $container) {
                 abstract_arg('Receivers'),
                 service('messenger.routable_message_bus'),
                 service('event_dispatcher'),
-                service('logger'),
+                service('logger')->nullOnInvalid(),
+                service('messenger.transport.native_php_serializer')->nullOnInvalid(),
+                null,
             ])
             ->tag('console.command')
+            ->tag('monolog.logger', ['channel' => 'messenger'])
 
         ->set('console.command.messenger_failed_messages_show', FailedMessagesShowCommand::class)
             ->args([
                 abstract_arg('Default failure receiver name'),
                 abstract_arg('Receivers'),
+                service('messenger.transport.native_php_serializer')->nullOnInvalid(),
             ])
             ->tag('console.command')
 
@@ -203,6 +216,20 @@ return static function (ContainerConfigurator $container) {
             ->args([
                 abstract_arg('Default failure receiver name'),
                 abstract_arg('Receivers'),
+                service('messenger.transport.native_php_serializer')->nullOnInvalid(),
+            ])
+            ->tag('console.command')
+
+        ->set('console.command.messenger_stats', StatsCommand::class)
+            ->args([
+                service('messenger.receiver_locator'),
+                abstract_arg('Receivers names'),
+            ])
+            ->tag('console.command')
+
+        ->set('console.command.scheduler_debug', SchedulerDebugCommand::class)
+            ->args([
+                tagged_locator('scheduler.schedule_provider', 'name'),
             ])
             ->tag('console.command')
 
@@ -217,6 +244,12 @@ return static function (ContainerConfigurator $container) {
             ->args([
                 service('router'),
                 tagged_iterator('routing.expression_language_provider'),
+            ])
+            ->tag('console.command')
+
+        ->set('console.command.serializer_debug', SerializerDebugCommand::class)
+            ->args([
+                service('serializer.mapping.class_metadata_factory'),
             ])
             ->tag('console.command')
 
@@ -274,12 +307,22 @@ return static function (ContainerConfigurator $container) {
             ->tag('console.command', ['command' => 'translation:push'])
 
         ->set('console.command.workflow_dump', WorkflowDumpCommand::class)
+            ->args([
+                tagged_locator('workflow', 'name'),
+            ])
             ->tag('console.command')
 
         ->set('console.command.xliff_lint', XliffLintCommand::class)
             ->tag('console.command')
 
         ->set('console.command.yaml_lint', YamlLintCommand::class)
+            ->tag('console.command')
+
+        ->set('console.command.translation_lint', TranslationLintCommand::class)
+            ->args([
+                service('translator'),
+                param('kernel.enabled_locales'),
+            ])
             ->tag('console.command')
 
         ->set('console.command.form_debug', \Symfony\Component\Form\Command\DebugCommand::class)
@@ -321,6 +364,13 @@ return static function (ContainerConfigurator $container) {
             ])
             ->tag('console.command')
 
+        ->set('console.command.secrets_reveal', SecretsRevealCommand::class)
+            ->args([
+                service('secrets.vault'),
+                service('secrets.local_vault')->ignoreOnInvalid(),
+            ])
+            ->tag('console.command')
+
         ->set('console.command.secrets_decrypt_to_local', SecretsDecryptToLocalCommand::class)
             ->args([
                 service('secrets.vault'),
@@ -334,5 +384,18 @@ return static function (ContainerConfigurator $container) {
                 service('secrets.local_vault')->ignoreOnInvalid(),
             ])
             ->tag('console.command')
+
+        ->set('console.messenger.application', Application::class)
+            ->share(false)
+            ->call('setAutoExit', [false])
+            ->args([
+                service('kernel'),
+            ])
+
+        ->set('console.messenger.execute_command_handler', RunCommandMessageHandler::class)
+            ->args([
+                service('console.messenger.application'),
+            ])
+            ->tag('messenger.message_handler')
     ;
 };

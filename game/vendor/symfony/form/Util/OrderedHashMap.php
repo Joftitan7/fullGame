@@ -64,25 +64,17 @@ namespace Symfony\Component\Form\Util;
  *
  * @author Bernhard Schussek <bschussek@gmail.com>
  *
- * @template TKey of array-key
  * @template TValue
  *
- * @implements \ArrayAccess<TKey, TValue>
- * @implements \IteratorAggregate<TKey, TValue>
+ * @implements \ArrayAccess<string, TValue>
+ * @implements \IteratorAggregate<string, TValue>
  */
 class OrderedHashMap implements \ArrayAccess, \IteratorAggregate, \Countable
 {
     /**
-     * The elements of the map, indexed by their keys.
-     *
-     * @var array<TKey, TValue>
-     */
-    private array $elements = [];
-
-    /**
      * The keys of the map in the order in which they were inserted or changed.
      *
-     * @var list<TKey>
+     * @var list<string>
      */
     private array $orderedKeys = [];
 
@@ -96,12 +88,13 @@ class OrderedHashMap implements \ArrayAccess, \IteratorAggregate, \Countable
     /**
      * Creates a new map.
      *
-     * @param array<TKey, TValue> $elements The elements to insert initially
+     * @param TValue[] $elements The initial elements of the map, indexed by their keys
      */
-    public function __construct(array $elements = [])
-    {
-        $this->elements = $elements;
-        $this->orderedKeys = array_keys($elements);
+    public function __construct(
+        private array $elements = [],
+    ) {
+        // the explicit string type-cast is necessary as digit-only keys would be returned as integers otherwise
+        $this->orderedKeys = array_map(strval(...), array_keys($elements));
     }
 
     public function offsetExists(mixed $key): bool
@@ -112,7 +105,7 @@ class OrderedHashMap implements \ArrayAccess, \IteratorAggregate, \Countable
     public function offsetGet(mixed $key): mixed
     {
         if (!isset($this->elements[$key])) {
-            throw new \OutOfBoundsException(sprintf('The offset "%s" does not exist.', $key));
+            throw new \OutOfBoundsException(\sprintf('The offset "%s" does not exist.', $key));
         }
 
         return $this->elements[$key];

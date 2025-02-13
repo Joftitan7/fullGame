@@ -22,16 +22,17 @@ use Symfony\Component\Notifier\Recipient\SmsRecipientInterface;
  */
 class SmsChannel extends AbstractChannel
 {
-    public function notify(Notification $notification, RecipientInterface $recipient, string $transportName = null): void
+    /**
+     * @param SmsRecipientInterface $recipient
+     */
+    public function notify(Notification $notification, RecipientInterface $recipient, ?string $transportName = null): void
     {
         $message = null;
         if ($notification instanceof SmsNotificationInterface) {
             $message = $notification->asSmsMessage($recipient, $transportName);
         }
 
-        if (null === $message) {
-            $message = SmsMessage::fromNotification($notification, $recipient);
-        }
+        $message ??= SmsMessage::fromNotification($notification, $recipient);
 
         if (null !== $transportName) {
             $message->transport($transportName);

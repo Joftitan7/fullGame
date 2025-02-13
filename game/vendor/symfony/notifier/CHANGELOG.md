@@ -1,10 +1,38 @@
 CHANGELOG
 =========
 
+7.2
+---
+
+ * Deprecate `TransportFactoryTestCase`, extend `AbstractTransportFactoryTestCase` instead
+
+   The `testIncompleteDsnException()` and `testMissingRequiredOptionException()` tests are no longer provided by default. If you make use of them (i.e. by implementing the
+   `incompleteDsnProvider()` or `missingRequiredOptionProvider()` data providers), you now need to use the `IncompleteDsnTestTrait` or `MissingRequiredOptionTestTrait` respectively.
+
+ * Make `TransportFactoryTestCase` and `TransportTestCase` compatible with PHPUnit 10+
+ * Add `Desktop` channel
+
+6.3
+---
+
+ * Introduce `FromNotificationInterface` for `MessageInterface` implementations
+
+6.2
+---
+
+ * Add PHPUnit constraints
+ * Add `from` property in `SmsMessage`
+
 6.1
 ---
 
  * Use importance level to set flash message type
+
+5.4.21
+------
+
+ * [BC BREAK] The following data providers for `TransportTestCase` are now static: `toStringProvider()`, `supportedMessagesProvider()` and `unsupportedMessagesProvider()`
+ * [BC BREAK] `TransportTestCase::createTransport()` is now static
 
 5.4
 ---

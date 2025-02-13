@@ -20,24 +20,16 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
  */
 class ContainerParametersResourceChecker implements ResourceCheckerInterface
 {
-    private ContainerInterface $container;
-
-    public function __construct(ContainerInterface $container)
-    {
-        $this->container = $container;
+    public function __construct(
+        private ContainerInterface $container,
+    ) {
     }
 
-    /**
-     * {@inheritdoc}
-     */
     public function supports(ResourceInterface $metadata): bool
     {
         return $metadata instanceof ContainerParametersResource;
     }
 
-    /**
-     * {@inheritdoc}
-     */
     public function isFresh(ResourceInterface $resource, int $timestamp): bool
     {
         foreach ($resource->getParameters() as $key => $value) {

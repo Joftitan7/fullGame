@@ -20,7 +20,6 @@ use Symfony\Component\Security\Core\User\UserInterface;
  */
 class SwitchUserToken extends UsernamePasswordToken
 {
-    private TokenInterface $originalToken;
     private ?string $originatedFromUri = null;
 
     /**
@@ -29,11 +28,15 @@ class SwitchUserToken extends UsernamePasswordToken
      *
      * @throws \InvalidArgumentException
      */
-    public function __construct(UserInterface $user, string $firewallName, array $roles, TokenInterface $originalToken, string $originatedFromUri = null)
-    {
+    public function __construct(
+        UserInterface $user,
+        string $firewallName,
+        array $roles,
+        private TokenInterface $originalToken,
+        ?string $originatedFromUri = null,
+    ) {
         parent::__construct($user, $firewallName, $roles);
 
-        $this->originalToken = $originalToken;
         $this->originatedFromUri = $originatedFromUri;
     }
 
@@ -47,17 +50,11 @@ class SwitchUserToken extends UsernamePasswordToken
         return $this->originatedFromUri;
     }
 
-    /**
-     * {@inheritdoc}
-     */
     public function __serialize(): array
     {
         return [$this->originalToken, $this->originatedFromUri, parent::__serialize()];
     }
 
-    /**
-     * {@inheritdoc}
-     */
     public function __unserialize(array $data): void
     {
         if (3 > \count($data)) {

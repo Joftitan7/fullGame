@@ -22,36 +22,28 @@ final class BoundArgument implements ArgumentInterface
 
     private static int $sequence = 0;
 
-    private mixed $value;
     private ?int $identifier = null;
     private ?bool $used = null;
-    private int $type;
-    private ?string $file;
 
-    public function __construct(mixed $value, bool $trackUsage = true, int $type = 0, string $file = null)
-    {
-        $this->value = $value;
+    public function __construct(
+        private mixed $value,
+        bool $trackUsage = true,
+        private int $type = 0,
+        private ?string $file = null,
+    ) {
         if ($trackUsage) {
             $this->identifier = ++self::$sequence;
         } else {
             $this->used = true;
         }
-        $this->type = $type;
-        $this->file = $file;
     }
 
-    /**
-     * {@inheritdoc}
-     */
     public function getValues(): array
     {
         return [$this->value, $this->identifier, $this->used, $this->type, $this->file];
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function setValues(array $values)
+    public function setValues(array $values): void
     {
         if (5 === \count($values)) {
             [$this->value, $this->identifier, $this->used, $this->type, $this->file] = $values;

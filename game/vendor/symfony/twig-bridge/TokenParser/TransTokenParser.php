@@ -27,9 +27,6 @@ use Twig\TokenParser\AbstractTokenParser;
  */
 final class TransTokenParser extends AbstractTokenParser
 {
-    /**
-     * {@inheritdoc}
-     */
     public function parse(Token $token): Node
     {
         $lineno = $token->getLine();
@@ -77,7 +74,7 @@ final class TransTokenParser extends AbstractTokenParser
 
         $stream->expect(Token::BLOCK_END_TYPE);
 
-        return new TransNode($body, $domain, $count, $vars, $locale, $lineno, $this->getTag());
+        return new TransNode($body, $domain, $count, $vars, $locale, $lineno);
     }
 
     public function decideTransFork(Token $token): bool
@@ -85,9 +82,6 @@ final class TransTokenParser extends AbstractTokenParser
         return $token->test(['endtrans']);
     }
 
-    /**
-     * {@inheritdoc}
-     */
     public function getTag(): string
     {
         return 'trans';

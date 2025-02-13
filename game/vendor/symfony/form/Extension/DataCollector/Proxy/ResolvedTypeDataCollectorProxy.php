@@ -27,50 +27,32 @@ use Symfony\Component\OptionsResolver\OptionsResolver;
  */
 class ResolvedTypeDataCollectorProxy implements ResolvedFormTypeInterface
 {
-    private ResolvedFormTypeInterface $proxiedType;
-    private FormDataCollectorInterface $dataCollector;
-
-    public function __construct(ResolvedFormTypeInterface $proxiedType, FormDataCollectorInterface $dataCollector)
-    {
-        $this->proxiedType = $proxiedType;
-        $this->dataCollector = $dataCollector;
+    public function __construct(
+        private ResolvedFormTypeInterface $proxiedType,
+        private FormDataCollectorInterface $dataCollector,
+    ) {
     }
 
-    /**
-     * {@inheritdoc}
-     */
     public function getBlockPrefix(): string
     {
         return $this->proxiedType->getBlockPrefix();
     }
 
-    /**
-     * {@inheritdoc}
-     */
     public function getParent(): ?ResolvedFormTypeInterface
     {
         return $this->proxiedType->getParent();
     }
 
-    /**
-     * {@inheritdoc}
-     */
     public function getInnerType(): FormTypeInterface
     {
         return $this->proxiedType->getInnerType();
     }
 
-    /**
-     * {@inheritdoc}
-     */
     public function getTypeExtensions(): array
     {
         return $this->proxiedType->getTypeExtensions();
     }
 
-    /**
-     * {@inheritdoc}
-     */
     public function createBuilder(FormFactoryInterface $factory, string $name, array $options = []): FormBuilderInterface
     {
         $builder = $this->proxiedType->createBuilder($factory, $name, $options);
@@ -81,34 +63,22 @@ class ResolvedTypeDataCollectorProxy implements ResolvedFormTypeInterface
         return $builder;
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function createView(FormInterface $form, FormView $parent = null): FormView
+    public function createView(FormInterface $form, ?FormView $parent = null): FormView
     {
         return $this->proxiedType->createView($form, $parent);
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function buildForm(FormBuilderInterface $builder, array $options)
+    public function buildForm(FormBuilderInterface $builder, array $options): void
     {
         $this->proxiedType->buildForm($builder, $options);
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function buildView(FormView $view, FormInterface $form, array $options)
+    public function buildView(FormView $view, FormInterface $form, array $options): void
     {
         $this->proxiedType->buildView($view, $form, $options);
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function finishView(FormView $view, FormInterface $form, array $options)
+    public function finishView(FormView $view, FormInterface $form, array $options): void
     {
         $this->proxiedType->finishView($view, $form, $options);
 
@@ -132,9 +102,6 @@ class ResolvedTypeDataCollectorProxy implements ResolvedFormTypeInterface
         }
     }
 
-    /**
-     * {@inheritdoc}
-     */
     public function getOptionsResolver(): OptionsResolver
     {
         return $this->proxiedType->getOptionsResolver();

@@ -23,18 +23,13 @@ abstract class AbstractChoiceLoader implements ChoiceLoaderInterface
 
     /**
      * @final
-     *
-     * {@inheritdoc}
      */
-    public function loadChoiceList(callable $value = null): ChoiceListInterface
+    public function loadChoiceList(?callable $value = null): ChoiceListInterface
     {
         return new ArrayChoiceList($this->choices ??= $this->loadChoices(), $value);
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function loadChoicesForValues(array $values, callable $value = null): array
+    public function loadChoicesForValues(array $values, ?callable $value = null): array
     {
         if (!$values) {
             return [];
@@ -43,10 +38,7 @@ abstract class AbstractChoiceLoader implements ChoiceLoaderInterface
         return $this->doLoadChoicesForValues($values, $value);
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function loadValuesForChoices(array $choices, callable $value = null): array
+    public function loadValuesForChoices(array $choices, ?callable $value = null): array
     {
         if (!$choices) {
             return [];
@@ -54,7 +46,7 @@ abstract class AbstractChoiceLoader implements ChoiceLoaderInterface
 
         if ($value) {
             // if a value callback exists, use it
-            return array_map($value, $choices);
+            return array_map(fn ($item) => (string) $value($item), $choices);
         }
 
         return $this->doLoadValuesForChoices($choices);

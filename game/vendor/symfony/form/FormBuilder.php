@@ -14,7 +14,6 @@ namespace Symfony\Component\Form;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Form\Exception\BadMethodCallException;
 use Symfony\Component\Form\Exception\InvalidArgumentException;
-use Symfony\Component\Form\Exception\UnexpectedTypeException;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
 
 /**
@@ -45,10 +44,7 @@ class FormBuilder extends FormConfigBuilder implements \IteratorAggregate, FormB
         $this->setFormFactory($factory);
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function add(FormBuilderInterface|string $child, string $type = null, array $options = []): static
+    public function add(FormBuilderInterface|string $child, ?string $type = null, array $options = []): static
     {
         if ($this->locked) {
             throw new BadMethodCallException('FormBuilder methods cannot be accessed anymore once the builder is turned into a FormConfigInterface instance.');
@@ -63,10 +59,6 @@ class FormBuilder extends FormConfigBuilder implements \IteratorAggregate, FormB
             return $this;
         }
 
-        if (!\is_string($child) && !\is_int($child)) {
-            throw new UnexpectedTypeException($child, 'string or Symfony\Component\Form\FormBuilderInterface');
-        }
-
         // Add to "children" to maintain order
         $this->children[$child] = null;
         $this->unresolvedChildren[$child] = [$type, $options];
@@ -74,10 +66,7 @@ class FormBuilder extends FormConfigBuilder implements \IteratorAggregate, FormB
         return $this;
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function create(string $name, string $type = null, array $options = []): FormBuilderInterface
+    public function create(string $name, ?string $type = null, array $options = []): FormBuilderInterface
     {
         if ($this->locked) {
             throw new BadMethodCallException('FormBuilder methods cannot be accessed anymore once the builder is turned into a FormConfigInterface instance.');
@@ -94,9 +83,6 @@ class FormBuilder extends FormConfigBuilder implements \IteratorAggregate, FormB
         return $this->getFormFactory()->createBuilderForProperty($this->getDataClass(), $name, null, $options);
     }
 
-    /**
-     * {@inheritdoc}
-     */
     public function get(string $name): FormBuilderInterface
     {
         if ($this->locked) {
@@ -111,12 +97,9 @@ class FormBuilder extends FormConfigBuilder implements \IteratorAggregate, FormB
             return $this->children[$name];
         }
 
-        throw new InvalidArgumentException(sprintf('The child with the name "%s" does not exist.', $name));
+        throw new InvalidArgumentException(\sprintf('The child with the name "%s" does not exist.', $name));
     }
 
-    /**
-     * {@inheritdoc}
-     */
     public function remove(string $name): static
     {
         if ($this->locked) {
@@ -128,9 +111,6 @@ class FormBuilder extends FormConfigBuilder implements \IteratorAggregate, FormB
         return $this;
     }
 
-    /**
-     * {@inheritdoc}
-     */
     public function has(string $name): bool
     {
         if ($this->locked) {
@@ -140,9 +120,6 @@ class FormBuilder extends FormConfigBuilder implements \IteratorAggregate, FormB
         return isset($this->unresolvedChildren[$name]) || isset($this->children[$name]);
     }
 
-    /**
-     * {@inheritdoc}
-     */
     public function all(): array
     {
         if ($this->locked) {
@@ -163,12 +140,9 @@ class FormBuilder extends FormConfigBuilder implements \IteratorAggregate, FormB
         return \count($this->children);
     }
 
-    /**
-     * {@inheritdoc}
-     */
     public function getFormConfig(): FormConfigInterface
     {
-        /** @var $config self */
+        /** @var self $config */
         $config = parent::getFormConfig();
 
         $config->children = [];
@@ -177,9 +151,6 @@ class FormBuilder extends FormConfigBuilder implements \IteratorAggregate, FormB
         return $config;
     }
 
-    /**
-     * {@inheritdoc}
-     */
     public function getForm(): FormInterface
     {
         if ($this->locked) {
@@ -204,8 +175,6 @@ class FormBuilder extends FormConfigBuilder implements \IteratorAggregate, FormB
     }
 
     /**
-     * {@inheritdoc}
-     *
      * @return \Traversable<string, FormBuilderInterface>
      */
     public function getIterator(): \Traversable
@@ -232,7 +201,7 @@ class FormBuilder extends FormConfigBuilder implements \IteratorAggregate, FormB
     /**
      * Converts all unresolved children into {@link FormBuilder} instances.
      */
-    private function resolveChildren()
+    private function resolveChildren(): void
     {
         foreach ($this->unresolvedChildren as $name => $info) {
             $this->children[$name] = $this->create($name, $info[0], $info[1]);

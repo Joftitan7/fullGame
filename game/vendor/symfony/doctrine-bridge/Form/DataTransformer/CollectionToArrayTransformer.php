@@ -13,11 +13,14 @@ namespace Symfony\Bridge\Doctrine\Form\DataTransformer;
 
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
+use Doctrine\Common\Collections\ReadableCollection;
 use Symfony\Component\Form\DataTransformerInterface;
 use Symfony\Component\Form\Exception\TransformationFailedException;
 
 /**
  * @author Bernhard Schussek <bschussek@gmail.com>
+ *
+ * @implements DataTransformerInterface<Collection, array>
  */
 class CollectionToArrayTransformer implements DataTransformerInterface
 {
@@ -38,8 +41,8 @@ class CollectionToArrayTransformer implements DataTransformerInterface
             return $collection;
         }
 
-        if (!$collection instanceof Collection) {
-            throw new TransformationFailedException('Expected a Doctrine\Common\Collections\Collection object.');
+        if (!$collection instanceof ReadableCollection) {
+            throw new TransformationFailedException(\sprintf('Expected a "%s" object.', ReadableCollection::class));
         }
 
         return $collection->toArray();

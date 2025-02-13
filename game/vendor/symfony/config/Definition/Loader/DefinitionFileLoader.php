@@ -34,10 +34,7 @@ class DefinitionFileLoader extends FileLoader
         parent::__construct($locator);
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function load(mixed $resource, string $type = null): mixed
+    public function load(mixed $resource, ?string $type = null): mixed
     {
         // the loader variable is exposed to the included file below
         $loader = $this;
@@ -60,10 +57,7 @@ class DefinitionFileLoader extends FileLoader
         return null;
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function supports(mixed $resource, string $type = null): bool
+    public function supports(mixed $resource, ?string $type = null): bool
     {
         if (!\is_string($resource)) {
             return false;
@@ -87,7 +81,7 @@ class DefinitionFileLoader extends FileLoader
             $reflectionType = $parameter->getType();
 
             if (!$reflectionType instanceof \ReflectionNamedType) {
-                throw new \InvalidArgumentException(sprintf('Could not resolve argument "$%s" for "%s". You must typehint it (for example with "%s").', $parameter->getName(), $path, DefinitionConfigurator::class));
+                throw new \InvalidArgumentException(\sprintf('Could not resolve argument "$%s" for "%s". You must typehint it (for example with "%s").', $parameter->getName(), $path, DefinitionConfigurator::class));
             }
 
             $arguments[] = match ($reflectionType->getName()) {

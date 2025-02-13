@@ -11,6 +11,7 @@
 
 namespace Symfony\Bundle\TwigBundle\DependencyInjection;
 
+use Symfony\Component\AssetMapper\AssetMapper;
 use Symfony\Component\Config\FileLocator;
 use Symfony\Component\Config\Resource\FileExistenceResource;
 use Symfony\Component\Console\Application;
@@ -21,8 +22,10 @@ use Symfony\Component\Form\AbstractRendererEngine;
 use Symfony\Component\Form\Form;
 use Symfony\Component\HttpKernel\DependencyInjection\Extension;
 use Symfony\Component\Mailer\Mailer;
+use Symfony\Component\Translation\LocaleSwitcher;
 use Symfony\Component\Translation\Translator;
 use Symfony\Contracts\Service\ResetInterface;
+use Twig\Environment;
 use Twig\Extension\ExtensionInterface;
 use Twig\Extension\RuntimeExtensionInterface;
 use Twig\Loader\LoaderInterface;
@@ -35,10 +38,14 @@ use Twig\Loader\LoaderInterface;
  */
 class TwigExtension extends Extension
 {
-    public function load(array $configs, ContainerBuilder $container)
+    public function load(array $configs, ContainerBuilder $container): void
     {
         $loader = new PhpFileLoader($container, new FileLocator(__DIR__.'/../Resources/config'));
         $loader->load('twig.php');
+
+        if (method_exists(Environment::class, 'resetGlobals')) {
+            $container->getDefinition('twig')->addTag('kernel.reset', ['method' => 'resetGlobals']);
+        }
 
         if ($container::willBeAvailable('symfony/form', Form::class, ['symfony/twig-bundle'])) {
             $loader->load('form.php');
@@ -52,10 +59,6 @@ class TwigExtension extends Extension
 
         if ($container::willBeAvailable('symfony/console', Application::class, ['symfony/twig-bundle'])) {
             $loader->load('console.php');
-        }
-
-        if ($container::willBeAvailable('symfony/mailer', Mailer::class, ['symfony/twig-bundle'])) {
-            $loader->load('mailer.php');
         }
 
         if (!$container::willBeAvailable('symfony/translation', Translator::class, ['symfony/twig-bundle'])) {
@@ -78,6 +81,22 @@ class TwigExtension extends Extension
         $configuration = $this->getConfiguration($configs, $container);
 
         $config = $this->processConfiguration($configuration, $configs);
+
+        if ($container::willBeAvailable('symfony/mailer', Mailer::class, ['symfony/twig-bundle'])) {
+            $loader->load('mailer.php');
+
+            if ($htmlToTextConverter = $config['mailer']['html_to_text_converter'] ?? null) {
+                $container->getDefinition('twig.mime_body_renderer')->setArgument('$converter', new Reference($htmlToTextConverter));
+            }
+
+            if (ContainerBuilder::willBeAvailable('symfony/translation', LocaleSwitcher::class, ['symfony/framework-bundle'])) {
+                $container->getDefinition('twig.mime_body_renderer')->setArgument('$localeSwitcher', new Reference('translation.locale_switcher', ContainerBuilder::IGNORE_ON_INVALID_REFERENCE));
+            }
+        }
+
+        if ($container::willBeAvailable('symfony/asset-mapper', AssetMapper::class, ['symfony/twig-bundle'])) {
+            $loader->load('importmap.php');
+        }
 
         $container->setParameter('twig.form.resources', $config['form_themes']);
         $container->setParameter('twig.default_path', $config['default_path']);
@@ -139,8 +158,10 @@ class TwigExtension extends Extension
             }
         }
 
-        if (isset($config['autoescape_service']) && isset($config['autoescape_service_method'])) {
-            $config['autoescape'] = [new Reference($config['autoescape_service']), $config['autoescape_service_method']];
+        if (isset($config['autoescape_service'])) {
+            $config['autoescape'] = [new Reference($config['autoescape_service']), $config['autoescape_service_method'] ?? '__invoke'];
+        } else {
+            $config['autoescape'] = 'name';
         }
 
         $container->getDefinition('twig')->replaceArgument(1, array_intersect_key($config, [
@@ -154,8 +175,6 @@ class TwigExtension extends Extension
             'optimizations' => true,
         ]));
 
-        $container->registerForAutoconfiguration(\Twig_ExtensionInterface::class)->addTag('twig.extension');
-        $container->registerForAutoconfiguration(\Twig_LoaderInterface::class)->addTag('twig.loader');
         $container->registerForAutoconfiguration(ExtensionInterface::class)->addTag('twig.extension');
         $container->registerForAutoconfiguration(LoaderInterface::class)->addTag('twig.loader');
         $container->registerForAutoconfiguration(RuntimeExtensionInterface::class)->addTag('twig.runtime');
@@ -194,9 +213,6 @@ class TwigExtension extends Extension
         return $name;
     }
 
-    /**
-     * {@inheritdoc}
-     */
     public function getXsdValidationBasePath(): string|false
     {
         return __DIR__.'/../Resources/config/schema';

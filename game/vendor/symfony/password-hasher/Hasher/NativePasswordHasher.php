@@ -31,7 +31,7 @@ final class NativePasswordHasher implements PasswordHasherInterface
     /**
      * @param string|null $algorithm An algorithm supported by password_hash() or null to use the best available algorithm
      */
-    public function __construct(int $opsLimit = null, int $memLimit = null, int $cost = null, string $algorithm = null)
+    public function __construct(?int $opsLimit = null, ?int $memLimit = null, ?int $cost = null, ?string $algorithm = null)
     {
         $cost ??= 13;
         $opsLimit ??= max(4, \defined('SODIUM_CRYPTO_PWHASH_OPSLIMIT_INTERACTIVE') ? \SODIUM_CRYPTO_PWHASH_OPSLIMIT_INTERACTIVE : 4);
@@ -71,7 +71,7 @@ final class NativePasswordHasher implements PasswordHasherInterface
         ];
     }
 
-    public function hash(string $plainPassword): string
+    public function hash(#[\SensitiveParameter] string $plainPassword): string
     {
         if ($this->isPasswordTooLong($plainPassword)) {
             throw new InvalidPasswordException();
@@ -84,7 +84,7 @@ final class NativePasswordHasher implements PasswordHasherInterface
         return password_hash($plainPassword, $this->algorithm, $this->options);
     }
 
-    public function verify(string $hashedPassword, string $plainPassword): bool
+    public function verify(string $hashedPassword, #[\SensitiveParameter] string $plainPassword): bool
     {
         if ('' === $plainPassword || $this->isPasswordTooLong($plainPassword)) {
             return false;
@@ -110,9 +110,6 @@ final class NativePasswordHasher implements PasswordHasherInterface
         return password_verify($plainPassword, $hashedPassword);
     }
 
-    /**
-     * {@inheritdoc}
-     */
     public function needsRehash(string $hashedPassword): bool
     {
         return password_needs_rehash($hashedPassword, $this->algorithm, $this->options);

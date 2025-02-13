@@ -26,6 +26,7 @@ class PrototypeConfigurator extends AbstractServiceConfigurator
     use Traits\BindTrait;
     use Traits\CallTrait;
     use Traits\ConfiguratorTrait;
+    use Traits\ConstructorTrait;
     use Traits\DeprecateTrait;
     use Traits\FactoryTrait;
     use Traits\LazyTrait;
@@ -37,13 +38,17 @@ class PrototypeConfigurator extends AbstractServiceConfigurator
 
     public const FACTORY = 'load';
 
-    private PhpFileLoader $loader;
-    private string $resource;
     private ?array $excludes = null;
-    private bool $allowParent;
 
-    public function __construct(ServicesConfigurator $parent, PhpFileLoader $loader, Definition $defaults, string $namespace, string $resource, bool $allowParent)
-    {
+    public function __construct(
+        ServicesConfigurator $parent,
+        private PhpFileLoader $loader,
+        Definition $defaults,
+        string $namespace,
+        private string $resource,
+        private bool $allowParent,
+        private ?string $path = null,
+    ) {
         $definition = new Definition();
         if (!$defaults->isPublic() || !$defaults->isPrivate()) {
             $definition->setPublic($defaults->isPublic());
@@ -54,10 +59,6 @@ class PrototypeConfigurator extends AbstractServiceConfigurator
         $definition->setBindings(unserialize(serialize($defaults->getBindings())));
         $definition->setChanges([]);
 
-        $this->loader = $loader;
-        $this->resource = $resource;
-        $this->allowParent = $allowParent;
-
         parent::__construct($parent, $definition, $namespace, $defaults->getTags());
     }
 
@@ -66,7 +67,7 @@ class PrototypeConfigurator extends AbstractServiceConfigurator
         parent::__destruct();
 
         if (isset($this->loader)) {
-            $this->loader->registerClasses($this->definition, $this->id, $this->resource, $this->excludes);
+            $this->loader->registerClasses($this->definition, $this->id, $this->resource, $this->excludes, $this->path);
         }
         unset($this->loader);
     }

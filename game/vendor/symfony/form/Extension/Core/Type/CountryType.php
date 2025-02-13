@@ -22,23 +22,18 @@ use Symfony\Component\OptionsResolver\OptionsResolver;
 
 class CountryType extends AbstractType
 {
-    /**
-     * {@inheritdoc}
-     */
-    public function configureOptions(OptionsResolver $resolver)
+    public function configureOptions(OptionsResolver $resolver): void
     {
         $resolver->setDefaults([
             'choice_loader' => function (Options $options) {
                 if (!class_exists(Intl::class)) {
-                    throw new LogicException(sprintf('The "symfony/intl" component is required to use "%s". Try running "composer require symfony/intl".', static::class));
+                    throw new LogicException(\sprintf('The "symfony/intl" component is required to use "%s". Try running "composer require symfony/intl".', static::class));
                 }
 
                 $choiceTranslationLocale = $options['choice_translation_locale'];
                 $alpha3 = $options['alpha3'];
 
-                return ChoiceList::loader($this, new IntlCallbackChoiceLoader(function () use ($choiceTranslationLocale, $alpha3) {
-                    return array_flip($alpha3 ? Countries::getAlpha3Names($choiceTranslationLocale) : Countries::getNames($choiceTranslationLocale));
-                }), [$choiceTranslationLocale, $alpha3]);
+                return ChoiceList::loader($this, new IntlCallbackChoiceLoader(static fn () => array_flip($alpha3 ? Countries::getAlpha3Names($choiceTranslationLocale) : Countries::getNames($choiceTranslationLocale))), [$choiceTranslationLocale, $alpha3]);
             },
             'choice_translation_domain' => false,
             'choice_translation_locale' => null,
@@ -50,17 +45,11 @@ class CountryType extends AbstractType
         $resolver->setAllowedTypes('alpha3', 'bool');
     }
 
-    /**
-     * {@inheritdoc}
-     */
     public function getParent(): ?string
     {
         return ChoiceType::class;
     }
 
-    /**
-     * {@inheritdoc}
-     */
     public function getBlockPrefix(): string
     {
         return 'country';

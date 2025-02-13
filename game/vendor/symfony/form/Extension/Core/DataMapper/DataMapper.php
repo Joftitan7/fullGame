@@ -27,7 +27,7 @@ class DataMapper implements DataMapperInterface
 {
     private DataAccessorInterface $dataAccessor;
 
-    public function __construct(DataAccessorInterface $dataAccessor = null)
+    public function __construct(?DataAccessorInterface $dataAccessor = null)
     {
         $this->dataAccessor = $dataAccessor ?? new ChainAccessor([
             new CallbackAccessor(),
@@ -35,9 +35,6 @@ class DataMapper implements DataMapperInterface
         ]);
     }
 
-    /**
-     * {@inheritdoc}
-     */
     public function mapDataToForms(mixed $data, \Traversable $forms): void
     {
         $empty = null === $data || [] === $data;
@@ -57,9 +54,6 @@ class DataMapper implements DataMapperInterface
         }
     }
 
-    /**
-     * {@inheritdoc}
-     */
     public function mapFormsToData(\Traversable $forms, mixed &$data): void
     {
         if (null === $data) {
@@ -79,5 +73,13 @@ class DataMapper implements DataMapperInterface
                 $this->dataAccessor->setValue($data, $form->getData(), $form);
             }
         }
+    }
+
+    /**
+     * @internal
+     */
+    public function getDataAccessor(): DataAccessorInterface
+    {
+        return $this->dataAccessor;
     }
 }

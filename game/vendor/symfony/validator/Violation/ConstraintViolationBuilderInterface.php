@@ -57,6 +57,11 @@ interface ConstraintViolationBuilderInterface
     public function setParameters(array $parameters): static;
 
     /**
+     * @return $this
+     */
+    public function disableTranslation(): static;
+
+    /**
      * Sets the translation domain which should be used for translating the
      * violation message.
      *
@@ -108,5 +113,5 @@ interface ConstraintViolationBuilderInterface
     /**
      * Adds the violation to the current execution context.
      */
-    public function addViolation();
+    public function addViolation(): void;
 }

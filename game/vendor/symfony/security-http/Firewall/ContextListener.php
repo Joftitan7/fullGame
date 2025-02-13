@@ -43,11 +43,7 @@ use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
  */
 class ContextListener extends AbstractListener
 {
-    private TokenStorageInterface $tokenStorage;
     private string $sessionKey;
-    private ?LoggerInterface $logger;
-    private iterable $userProviders;
-    private ?EventDispatcherInterface $dispatcher;
     private bool $registered = false;
     private AuthenticationTrustResolverInterface $trustResolver;
     private ?\Closure $sessionTrackerEnabler;
@@ -55,25 +51,24 @@ class ContextListener extends AbstractListener
     /**
      * @param iterable<mixed, UserProviderInterface> $userProviders
      */
-    public function __construct(TokenStorageInterface $tokenStorage, iterable $userProviders, string $contextKey, LoggerInterface $logger = null, EventDispatcherInterface $dispatcher = null, AuthenticationTrustResolverInterface $trustResolver = null, callable $sessionTrackerEnabler = null)
-    {
-        if (empty($contextKey)) {
+    public function __construct(
+        private TokenStorageInterface $tokenStorage,
+        private iterable $userProviders,
+        string $contextKey,
+        private ?LoggerInterface $logger = null,
+        private ?EventDispatcherInterface $dispatcher = null,
+        ?AuthenticationTrustResolverInterface $trustResolver = null,
+        ?callable $sessionTrackerEnabler = null,
+    ) {
+        if (!$contextKey) {
             throw new \InvalidArgumentException('$contextKey must not be empty.');
         }
 
-        $this->tokenStorage = $tokenStorage;
-        $this->userProviders = $userProviders;
         $this->sessionKey = '_security_'.$contextKey;
-        $this->logger = $logger;
-        $this->dispatcher = $dispatcher;
-
         $this->trustResolver = $trustResolver ?? new AuthenticationTrustResolver();
         $this->sessionTrackerEnabler = null === $sessionTrackerEnabler ? null : $sessionTrackerEnabler(...);
     }
 
-    /**
-     * {@inheritdoc}
-     */
     public function supports(Request $request): ?bool
     {
         return null; // always run authenticate() lazily with lazy firewalls
@@ -82,7 +77,7 @@ class ContextListener extends AbstractListener
     /**
      * Reads the Security Token from the session.
      */
-    public function authenticate(RequestEvent $event)
+    public function authenticate(RequestEvent $event): void
     {
         if (!$this->registered && null !== $this->dispatcher && $event->isMainRequest()) {
             $this->dispatcher->addListener(KernelEvents::RESPONSE, $this->onKernelResponse(...));
@@ -90,7 +85,7 @@ class ContextListener extends AbstractListener
         }
 
         $request = $event->getRequest();
-        $session = $request->hasPreviousSession() && $request->hasSession() ? $request->getSession() : null;
+        $session = $request->hasPreviousSession() ? $request->getSession() : null;
 
         $request->attributes->set('_security_firewall_run', $this->sessionKey);
 
@@ -122,10 +117,14 @@ class ContextListener extends AbstractListener
 
         $this->logger?->debug('Read existing security token from the session.', [
             'key' => $this->sessionKey,
-            'token_class' => \is_object($token) ? \get_class($token) : null,
+            'token_class' => \is_object($token) ? $token::class : null,
         ]);
 
         if ($token instanceof TokenInterface) {
+            if (!$token->getUser()) {
+                throw new \UnexpectedValueException(\sprintf('Cannot authenticate a "%s" token because it doesn\'t store a user.', $token::class));
+            }
+
             $originalToken = $token;
             $token = $this->refreshUser($token);
 
@@ -150,7 +149,7 @@ class ContextListener extends AbstractListener
     /**
      * Writes the security token into the session.
      */
-    public function onKernelResponse(ResponseEvent $event)
+    public function onKernelResponse(ResponseEvent $event): void
     {
         if (!$event->isMainRequest()) {
             return;
@@ -167,6 +166,7 @@ class ContextListener extends AbstractListener
         $session = $request->getSession();
         $sessionId = $session->getId();
         $usageIndexValue = $session instanceof Session ? $usageIndexReference = &$session->getUsageIndex() : null;
+        $usageIndexReference = \PHP_INT_MIN;
         $token = $this->tokenStorage->getToken();
 
         if (!$this->trustResolver->isAuthenticated($token)) {
@@ -181,6 +181,8 @@ class ContextListener extends AbstractListener
 
         if ($this->sessionTrackerEnabler && $session->getId() === $sessionId) {
             $usageIndexReference = $usageIndexValue;
+        } else {
+            $usageIndexReference = $usageIndexReference - \PHP_INT_MIN + $usageIndexValue;
         }
     }
 
@@ -195,11 +197,11 @@ class ContextListener extends AbstractListener
 
         $userNotFoundByProvider = false;
         $userDeauthenticated = false;
-        $userClass = \get_class($user);
+        $userClass = $user::class;
 
         foreach ($this->userProviders as $provider) {
             if (!$provider instanceof UserProviderInterface) {
-                throw new \InvalidArgumentException(sprintf('User provider "%s" must implement "%s".', get_debug_type($provider), UserProviderInterface::class));
+                throw new \InvalidArgumentException(\sprintf('User provider "%s" must implement "%s".', get_debug_type($provider), UserProviderInterface::class));
             }
 
             if (!$provider->supportsClass($userClass)) {
@@ -212,10 +214,10 @@ class ContextListener extends AbstractListener
                 $newToken->setUser($refreshedUser, false);
 
                 // tokens can be deauthenticated if the user has been changed.
-                if ($token instanceof AbstractToken && $this->hasUserChanged($user, $newToken)) {
+                if ($token instanceof AbstractToken && self::hasUserChanged($user, $newToken)) {
                     $userDeauthenticated = true;
 
-                    $this->logger?->debug('Cannot refresh token because user has changed.', ['username' => $refreshedUser->getUserIdentifier(), 'provider' => \get_class($provider)]);
+                    $this->logger?->debug('Cannot refresh token because user has changed.', ['username' => $refreshedUser->getUserIdentifier(), 'provider' => $provider::class]);
 
                     continue;
                 }
@@ -223,7 +225,7 @@ class ContextListener extends AbstractListener
                 $token->setUser($refreshedUser);
 
                 if (null !== $this->logger) {
-                    $context = ['provider' => \get_class($provider), 'username' => $refreshedUser->getUserIdentifier()];
+                    $context = ['provider' => $provider::class, 'username' => $refreshedUser->getUserIdentifier()];
 
                     if ($token instanceof SwitchUserToken) {
                         $originalToken = $token->getOriginalToken();
@@ -237,7 +239,7 @@ class ContextListener extends AbstractListener
             } catch (UnsupportedUserException) {
                 // let's try the next user provider
             } catch (UserNotFoundException $e) {
-                $this->logger?->warning('Username could not be found in the selected user provider.', ['username' => $e->getUserIdentifier(), 'provider' => \get_class($provider)]);
+                $this->logger?->info('Username could not be found in the selected user provider.', ['username' => $e->getUserIdentifier(), 'provider' => $provider::class]);
 
                 $userNotFoundByProvider = true;
             }
@@ -251,15 +253,15 @@ class ContextListener extends AbstractListener
             return null;
         }
 
-        throw new \RuntimeException(sprintf('There is no user provider for user "%s". Shouldn\'t the "supportsClass()" method of your user provider return true for this classname?', $userClass));
+        throw new \RuntimeException(\sprintf('There is no user provider for user "%s". Shouldn\'t the "supportsClass()" method of your user provider return true for this classname?', $userClass));
     }
 
-    private function safelyUnserialize(string $serializedToken)
+    private function safelyUnserialize(string $serializedToken): mixed
     {
         $token = null;
         $prevUnserializeHandler = ini_set('unserialize_callback_func', __CLASS__.'::handleUnserializeCallback');
         $prevErrorHandler = set_error_handler(function ($type, $msg, $file, $line, $context = []) use (&$prevErrorHandler) {
-            if (__FILE__ === $file) {
+            if (__FILE__ === $file && !\in_array($type, [\E_DEPRECATED, \E_USER_DEPRECATED], true)) {
                 throw new \ErrorException($msg, 0x37313BC, $type, $file, $line);
             }
 
@@ -286,7 +288,7 @@ class ContextListener extends AbstractListener
         $refreshedUser = $refreshedToken->getUser();
 
         if ($originalUser instanceof EquatableInterface) {
-            return !(bool) $originalUser->isEqualTo($refreshedUser);
+            return !$originalUser->isEqualTo($refreshedUser);
         }
 
         if ($originalUser instanceof PasswordAuthenticatedUserInterface || $refreshedUser instanceof PasswordAuthenticatedUserInterface) {
@@ -303,15 +305,11 @@ class ContextListener extends AbstractListener
             }
         }
 
-        $userRoles = array_map('strval', (array) $refreshedUser->getRoles());
-
-        if ($refreshedToken instanceof SwitchUserToken) {
-            $userRoles[] = 'ROLE_PREVIOUS_ADMIN';
-        }
+        $userRoles = array_map('strval', $refreshedUser->getRoles());
 
         if (
-            \count($userRoles) !== \count($refreshedToken->getRoleNames()) ||
-            \count($userRoles) !== \count(array_intersect($userRoles, $refreshedToken->getRoleNames()))
+            \count($userRoles) !== \count($refreshedToken->getRoleNames())
+            || \count($userRoles) !== \count(array_intersect($userRoles, $refreshedToken->getRoleNames()))
         ) {
             return true;
         }
@@ -326,7 +324,7 @@ class ContextListener extends AbstractListener
     /**
      * @internal
      */
-    public static function handleUnserializeCallback(string $class)
+    public static function handleUnserializeCallback(string $class): never
     {
         throw new \ErrorException('Class not found: '.$class, 0x37313BC);
     }

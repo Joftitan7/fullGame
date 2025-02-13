@@ -12,7 +12,7 @@
 namespace Symfony\Component\Security\Http\Controller;
 
 use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\HttpKernel\Controller\ArgumentValueResolverInterface;
+use Symfony\Component\HttpKernel\Controller\ValueResolverInterface;
 use Symfony\Component\HttpKernel\ControllerMetadata\ArgumentMetadata;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 use Symfony\Component\Security\Core\Exception\AccessDeniedException;
@@ -24,44 +24,39 @@ use Symfony\Component\Security\Http\Attribute\CurrentUser;
  *
  * @author Iltar van der Berg <kjarli@gmail.com>
  */
-final class UserValueResolver implements ArgumentValueResolverInterface
+final class UserValueResolver implements ValueResolverInterface
 {
-    private TokenStorageInterface $tokenStorage;
-
-    public function __construct(TokenStorageInterface $tokenStorage)
-    {
-        $this->tokenStorage = $tokenStorage;
+    public function __construct(
+        private TokenStorageInterface $tokenStorage,
+    ) {
     }
 
-    public function supports(Request $request, ArgumentMetadata $argument): bool
+    public function resolve(Request $request, ArgumentMetadata $argument): array
     {
         // with the attribute, the type can be any UserInterface implementation
         // otherwise, the type must be UserInterface
         if (UserInterface::class !== $argument->getType() && !$argument->getAttributesOfType(CurrentUser::class, ArgumentMetadata::IS_INSTANCEOF)) {
-            return false;
+            return [];
         }
 
-        // if no user is present but a default value exists we delegate to DefaultValueResolver
-        if ($argument->hasDefaultValue() && null === $this->tokenStorage->getToken()?->getUser()) {
-            return false;
-        }
-
-        return true;
-    }
-
-    public function resolve(Request $request, ArgumentMetadata $argument): iterable
-    {
-        $user = $this->tokenStorage->getToken()?->getUser();
-
-        if (null === $user) {
-            if (!$argument->isNullable()) {
-                throw new AccessDeniedException(sprintf('There is no logged-in user to pass to $%s, make the argument nullable if you want to allow anonymous access to the action.', $argument->getName()));
+        if (null === $user = $this->tokenStorage->getToken()?->getUser()) {
+            // if no user is present but a default value exists we use it to prevent the EntityValueResolver or others
+            // from attempting resolution of the User as the current logged in user was requested here
+            if ($argument->hasDefaultValue()) {
+                return [$argument->getDefaultValue()];
             }
-            yield null;
-        } elseif (null === $argument->getType() || $user instanceof ($argument->getType())) {
-            yield $user;
-        } else {
-            throw new AccessDeniedException(sprintf('The logged-in user is an instance of "%s" but a user of type "%s" is expected.', $user::class, $argument->getType()));
+
+            if (!$argument->isNullable()) {
+                throw new AccessDeniedException(\sprintf('There is no logged-in user to pass to $%s, make the argument nullable if you want to allow anonymous access to the action.', $argument->getName()));
+            }
+
+            return [null];
         }
+
+        if (null === $argument->getType() || $user instanceof ($argument->getType())) {
+            return [$user];
+        }
+
+        throw new AccessDeniedException(\sprintf('The logged-in user is an instance of "%s" but a user of type "%s" is expected.', $user::class, $argument->getType()));
     }
 }

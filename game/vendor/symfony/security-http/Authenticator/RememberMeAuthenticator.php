@@ -43,16 +43,31 @@ use Symfony\Component\Security\Http\RememberMe\ResponseListener;
  */
 class RememberMeAuthenticator implements InteractiveAuthenticatorInterface
 {
-    private RememberMeHandlerInterface $rememberMeHandler;
     private string $secret;
     private TokenStorageInterface $tokenStorage;
     private string $cookieName;
     private ?LoggerInterface $logger;
 
-    public function __construct(RememberMeHandlerInterface $rememberMeHandler, string $secret, TokenStorageInterface $tokenStorage, string $cookieName, LoggerInterface $logger = null)
-    {
-        $this->rememberMeHandler = $rememberMeHandler;
-        $this->secret = $secret;
+    /**
+     * @param TokenStorageInterface $tokenStorage
+     * @param string                $cookieName
+     * @param ?LoggerInterface      $logger
+     */
+    public function __construct(
+        private RememberMeHandlerInterface $rememberMeHandler,
+        #[\SensitiveParameter] TokenStorageInterface|string $tokenStorage,
+        string|TokenStorageInterface $cookieName,
+        LoggerInterface|string|null $logger = null,
+    ) {
+        if (\is_string($tokenStorage)) {
+            trigger_deprecation('symfony/security-core', '7.2', 'The "$secret" argument of "%s()" is deprecated.', __METHOD__);
+
+            $this->secret = $tokenStorage;
+            $tokenStorage = $cookieName;
+            $cookieName = $logger;
+            $logger = \func_num_args() > 4 ? func_get_arg(4) : null;
+        }
+
         $this->tokenStorage = $tokenStorage;
         $this->cookieName = $cookieName;
         $this->logger = $logger;
@@ -69,7 +84,7 @@ class RememberMeAuthenticator implements InteractiveAuthenticatorInterface
             return false;
         }
 
-        if (!$request->cookies->has($this->cookieName)) {
+        if (!$request->cookies->has($this->cookieName) || !\is_scalar($request->cookies->all()[$this->cookieName] ?: null)) {
             return false;
         }
 
@@ -81,21 +96,24 @@ class RememberMeAuthenticator implements InteractiveAuthenticatorInterface
 
     public function authenticate(Request $request): Passport
     {
-        $rawCookie = $request->cookies->get($this->cookieName);
-        if (!$rawCookie) {
+        if (!$rawCookie = $request->cookies->get($this->cookieName)) {
             throw new \LogicException('No remember-me cookie is found.');
         }
 
         $rememberMeCookie = RememberMeDetails::fromRawCookie($rawCookie);
 
-        return new SelfValidatingPassport(new UserBadge($rememberMeCookie->getUserIdentifier(), function () use ($rememberMeCookie) {
-            return $this->rememberMeHandler->consumeRememberMeCookie($rememberMeCookie);
-        }));
+        $userBadge = new UserBadge($rememberMeCookie->getUserIdentifier(), fn () => $this->rememberMeHandler->consumeRememberMeCookie($rememberMeCookie));
+
+        return new SelfValidatingPassport($userBadge);
     }
 
     public function createToken(Passport $passport, string $firewallName): TokenInterface
     {
-        return new RememberMeToken($passport->getUser(), $firewallName, $this->secret);
+        if (isset($this->secret)) {
+            return new RememberMeToken($passport->getUser(), $firewallName, $this->secret);
+        }
+
+        return new RememberMeToken($passport->getUser(), $firewallName);
     }
 
     public function onAuthenticationSuccess(Request $request, TokenInterface $token, string $firewallName): ?Response

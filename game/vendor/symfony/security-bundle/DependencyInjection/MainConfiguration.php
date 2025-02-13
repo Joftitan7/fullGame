@@ -36,16 +36,13 @@ class MainConfiguration implements ConfigurationInterface
     /** @internal */
     public const STRATEGY_PRIORITY = 'priority';
 
-    private array $factories;
-    private array $userProviderFactories;
-
     /**
-     * @param array<array-key, AuthenticatorFactoryInterface> $factories
+     * @param array<AuthenticatorFactoryInterface> $factories
      */
-    public function __construct(array $factories, array $userProviderFactories)
-    {
-        $this->factories = $factories;
-        $this->userProviderFactories = $userProviderFactories;
+    public function __construct(
+        private array $factories,
+        private array $userProviderFactories,
+    ) {
     }
 
     /**
@@ -65,7 +62,6 @@ class MainConfiguration implements ConfigurationInterface
                 ->end()
                 ->booleanNode('hide_user_not_found')->defaultTrue()->end()
                 ->booleanNode('erase_credentials')->defaultTrue()->end()
-                ->booleanNode('enable_authenticator_manager')->defaultTrue()->end()
                 ->arrayNode('access_decision_manager')
                     ->addDefaultsIfNotSet()
                     ->children()
@@ -78,15 +74,15 @@ class MainConfiguration implements ConfigurationInterface
                         ->booleanNode('allow_if_equal_granted_denied')->defaultTrue()->end()
                     ->end()
                     ->validate()
-                        ->ifTrue(function ($v) { return isset($v['strategy'], $v['service']); })
+                        ->ifTrue(fn ($v) => isset($v['strategy'], $v['service']))
                         ->thenInvalid('"strategy" and "service" cannot be used together.')
                     ->end()
                     ->validate()
-                        ->ifTrue(function ($v) { return isset($v['strategy'], $v['strategy_service']); })
+                        ->ifTrue(fn ($v) => isset($v['strategy'], $v['strategy_service']))
                         ->thenInvalid('"strategy" and "strategy_service" cannot be used together.')
                     ->end()
                     ->validate()
-                        ->ifTrue(function ($v) { return isset($v['service'], $v['strategy_service']); })
+                        ->ifTrue(fn ($v) => isset($v['service'], $v['strategy_service']))
                         ->thenInvalid('"service" and "strategy_service" cannot be used together.')
                     ->end()
                 ->end()
@@ -102,7 +98,7 @@ class MainConfiguration implements ConfigurationInterface
         return $tb;
     }
 
-    private function addRoleHierarchySection(ArrayNodeDefinition $rootNode)
+    private function addRoleHierarchySection(ArrayNodeDefinition $rootNode): void
     {
         $rootNode
             ->fixXmlConfig('role', 'role_hierarchy')
@@ -111,10 +107,10 @@ class MainConfiguration implements ConfigurationInterface
                     ->useAttributeAsKey('id')
                     ->prototype('array')
                         ->performNoDeepMerging()
-                        ->beforeNormalization()->ifString()->then(function ($v) { return ['value' => $v]; })->end()
+                        ->beforeNormalization()->ifString()->then(fn ($v) => ['value' => $v])->end()
                         ->beforeNormalization()
-                            ->ifTrue(function ($v) { return \is_array($v) && isset($v['value']); })
-                            ->then(function ($v) { return preg_split('/\s*,\s*/', $v['value']); })
+                            ->ifTrue(fn ($v) => \is_array($v) && isset($v['value']))
+                            ->then(fn ($v) => preg_split('/\s*,\s*/', $v['value']))
                         ->end()
                         ->prototype('scalar')->end()
                     ->end()
@@ -123,7 +119,7 @@ class MainConfiguration implements ConfigurationInterface
         ;
     }
 
-    private function addAccessControlSection(ArrayNodeDefinition $rootNode)
+    private function addAccessControlSection(ArrayNodeDefinition $rootNode): void
     {
         $rootNode
             ->fixXmlConfig('rule', 'access_control')
@@ -133,22 +129,28 @@ class MainConfiguration implements ConfigurationInterface
                     ->prototype('array')
                         ->fixXmlConfig('ip')
                         ->fixXmlConfig('method')
+                        ->fixXmlConfig('attribute')
                         ->children()
                             ->scalarNode('request_matcher')->defaultNull()->end()
                             ->scalarNode('requires_channel')->defaultNull()->end()
                             ->scalarNode('path')
                                 ->defaultNull()
-                                ->info('use the urldecoded format')
+                                ->info('Use the urldecoded format.')
                                 ->example('^/path to resource/')
                             ->end()
                             ->scalarNode('host')->defaultNull()->end()
                             ->integerNode('port')->defaultNull()->end()
                             ->arrayNode('ips')
-                                ->beforeNormalization()->ifString()->then(function ($v) { return [$v]; })->end()
+                                ->beforeNormalization()->ifString()->then(fn ($v) => [$v])->end()
                                 ->prototype('scalar')->end()
                             ->end()
+                            ->arrayNode('attributes')
+                                ->useAttributeAsKey('key')
+                                ->prototype('scalar')->end()
+                            ->end()
+                            ->scalarNode('route')->defaultNull()->end()
                             ->arrayNode('methods')
-                                ->beforeNormalization()->ifString()->then(function ($v) { return preg_split('/\s*,\s*/', $v); })->end()
+                                ->beforeNormalization()->ifString()->then(fn ($v) => preg_split('/\s*,\s*/', $v))->end()
                                 ->prototype('scalar')->end()
                             ->end()
                             ->scalarNode('allow_if')->defaultNull()->end()
@@ -156,7 +158,7 @@ class MainConfiguration implements ConfigurationInterface
                         ->fixXmlConfig('role')
                         ->children()
                             ->arrayNode('roles')
-                                ->beforeNormalization()->ifString()->then(function ($v) { return preg_split('/\s*,\s*/', $v); })->end()
+                                ->beforeNormalization()->ifString()->then(fn ($v) => preg_split('/\s*,\s*/', $v))->end()
                                 ->prototype('scalar')->end()
                             ->end()
                         ->end()
@@ -167,9 +169,9 @@ class MainConfiguration implements ConfigurationInterface
     }
 
     /**
-     * @param array<array-key, AuthenticatorFactoryInterface> $factories
+     * @param array<AuthenticatorFactoryInterface> $factories
      */
-    private function addFirewallsSection(ArrayNodeDefinition $rootNode, array $factories)
+    private function addFirewallsSection(ArrayNodeDefinition $rootNode, array $factories): void
     {
         $firewallNodeBuilder = $rootNode
             ->fixXmlConfig('firewall')
@@ -185,10 +187,15 @@ class MainConfiguration implements ConfigurationInterface
         ;
 
         $firewallNodeBuilder
-            ->scalarNode('pattern')->end()
+            ->scalarNode('pattern')
+                ->beforeNormalization()
+                    ->ifArray()
+                    ->then(fn ($v) => \sprintf('(?:%s)', implode('|', $v)))
+                ->end()
+            ->end()
             ->scalarNode('host')->end()
             ->arrayNode('methods')
-                ->beforeNormalization()->ifString()->then(function ($v) { return preg_split('/\s*,\s*/', $v); })->end()
+                ->beforeNormalization()->ifString()->then(fn ($v) => preg_split('/\s*,\s*/', $v))->end()
                 ->prototype('scalar')->end()
             ->end()
             ->booleanNode('security')->defaultTrue()->end()
@@ -201,7 +208,7 @@ class MainConfiguration implements ConfigurationInterface
             ->scalarNode('access_denied_url')->end()
             ->scalarNode('access_denied_handler')->end()
             ->scalarNode('entry_point')
-                ->info(sprintf('An enabled authenticator name or a service id that implements "%s"', AuthenticationEntryPointInterface::class))
+                ->info(\sprintf('An enabled authenticator name or a service id that implements "%s".', AuthenticationEntryPointInterface::class))
             ->end()
             ->scalarNode('provider')->end()
             ->booleanNode('stateless')->defaultFalse()->end()
@@ -210,21 +217,43 @@ class MainConfiguration implements ConfigurationInterface
             ->arrayNode('logout')
                 ->treatTrueLike([])
                 ->canBeUnset()
+                ->beforeNormalization()
+                    ->ifTrue(fn ($v): bool => \is_array($v) && (isset($v['csrf_token_manager']) xor isset($v['enable_csrf'])))
+                    ->then(function (array $v): array {
+                        if (isset($v['csrf_token_manager'])) {
+                            $v['enable_csrf'] = true;
+                        } elseif ($v['enable_csrf']) {
+                            $v['csrf_token_manager'] = 'security.csrf.token_manager';
+                        }
+
+                        return $v;
+                    })
+                ->end()
                 ->children()
-                    ->scalarNode('csrf_parameter')->defaultValue('_csrf_token')->end()
-                    ->scalarNode('csrf_token_generator')->cannotBeEmpty()->end()
+                    ->booleanNode('enable_csrf')->defaultNull()->end()
                     ->scalarNode('csrf_token_id')->defaultValue('logout')->end()
+                    ->scalarNode('csrf_parameter')->defaultValue('_csrf_token')->end()
+                    ->scalarNode('csrf_token_manager')->end()
                     ->scalarNode('path')->defaultValue('/logout')->end()
                     ->scalarNode('target')->defaultValue('/')->end()
                     ->booleanNode('invalidate_session')->defaultTrue()->end()
+                    ->arrayNode('clear_site_data')
+                        ->performNoDeepMerging()
+                        ->beforeNormalization()->ifString()->then(fn ($v) => $v ? array_map('trim', explode(',', $v)) : [])->end()
+                        ->enumPrototype()
+                            ->values([
+                                '*', 'cache', 'cookies', 'storage', 'executionContexts',
+                            ])
+                        ->end()
+                    ->end()
                 ->end()
                 ->fixXmlConfig('delete_cookie')
                 ->children()
                     ->arrayNode('delete_cookies')
                         ->normalizeKeys(false)
                         ->beforeNormalization()
-                            ->ifTrue(function ($v) { return \is_array($v) && \is_int(key($v)); })
-                            ->then(function ($v) { return array_map(function ($v) { return ['name' => $v]; }, $v); })
+                            ->ifTrue(fn ($v) => \is_array($v) && \is_int(key($v)))
+                            ->then(fn ($v) => array_map(fn ($v) => ['name' => $v], $v))
                         ->end()
                         ->useAttributeAsKey('name')
                         ->prototype('array')
@@ -233,6 +262,7 @@ class MainConfiguration implements ConfigurationInterface
                                 ->scalarNode('domain')->defaultNull()->end()
                                 ->scalarNode('secure')->defaultFalse()->end()
                                 ->scalarNode('samesite')->defaultNull()->end()
+                                ->scalarNode('partitioned')->defaultFalse()->end()
                             ->end()
                         ->end()
                     ->end()
@@ -244,6 +274,7 @@ class MainConfiguration implements ConfigurationInterface
                     ->scalarNode('provider')->end()
                     ->scalarNode('parameter')->defaultValue('_switch_user')->end()
                     ->scalarNode('role')->defaultValue('ROLE_ALLOWED_TO_SWITCH')->end()
+                    ->scalarNode('target_route')->defaultValue(null)->end()
                 ->end()
             ->end()
             ->arrayNode('required_badges')
@@ -263,7 +294,7 @@ class MainConfiguration implements ConfigurationInterface
                                 }
                             }
 
-                            throw new InvalidConfigurationException(sprintf('Undefined security Badge class "%s" set in "security.firewall.required_badges".', $requiredBadge));
+                            throw new InvalidConfigurationException(\sprintf('Undefined security Badge class "%s" set in "security.firewall.required_badges".', $requiredBadge));
                         }, $requiredBadges);
                     })
                 ->end()
@@ -289,9 +320,7 @@ class MainConfiguration implements ConfigurationInterface
         $firewallNodeBuilder
             ->end()
             ->validate()
-                ->ifTrue(function ($v) {
-                    return true === $v['security'] && isset($v['pattern']) && !isset($v['request_matcher']);
-                })
+                ->ifTrue(fn ($v) => true === $v['security'] && isset($v['pattern']) && !isset($v['request_matcher']))
                 ->then(function ($firewall) use ($abstractFactoryKeys) {
                     foreach ($abstractFactoryKeys as $k) {
                         if (!isset($firewall[$k]['check_path'])) {
@@ -299,7 +328,7 @@ class MainConfiguration implements ConfigurationInterface
                         }
 
                         if (str_contains($firewall[$k]['check_path'], '/') && !preg_match('#'.$firewall['pattern'].'#', $firewall[$k]['check_path'])) {
-                            throw new \LogicException(sprintf('The check_path "%s" for login method "%s" is not matched by the firewall pattern "%s".', $firewall[$k]['check_path'], $k, $firewall['pattern']));
+                            throw new \LogicException(\sprintf('The check_path "%s" for login method "%s" is not matched by the firewall pattern "%s".', $firewall[$k]['check_path'], $k, $firewall['pattern']));
                         }
                     }
 
@@ -309,7 +338,7 @@ class MainConfiguration implements ConfigurationInterface
         ;
     }
 
-    private function addProvidersSection(ArrayNodeDefinition $rootNode)
+    private function addProvidersSection(ArrayNodeDefinition $rootNode): void
     {
         $providerNodeBuilder = $rootNode
             ->fixXmlConfig('provider')
@@ -340,7 +369,7 @@ class MainConfiguration implements ConfigurationInterface
                         ->arrayNode('providers')
                             ->beforeNormalization()
                                 ->ifString()
-                                ->then(function ($v) { return preg_split('/\s*,\s*/', $v); })
+                                ->then(fn ($v) => preg_split('/\s*,\s*/', $v))
                             ->end()
                             ->prototype('scalar')->end()
                         ->end()
@@ -358,17 +387,17 @@ class MainConfiguration implements ConfigurationInterface
 
         $providerNodeBuilder
             ->validate()
-                ->ifTrue(function ($v) { return \count($v) > 1; })
+                ->ifTrue(fn ($v) => \count($v) > 1)
                 ->thenInvalid('You cannot set multiple provider types for the same provider')
             ->end()
             ->validate()
-                ->ifTrue(function ($v) { return 0 === \count($v); })
+                ->ifTrue(fn ($v) => 0 === \count($v))
                 ->thenInvalid('You must set a provider definition for the provider.')
             ->end()
         ;
     }
 
-    private function addPasswordHashersSection(ArrayNodeDefinition $rootNode)
+    private function addPasswordHashersSection(ArrayNodeDefinition $rootNode): void
     {
         $rootNode
             ->fixXmlConfig('password_hasher')
@@ -387,12 +416,12 @@ class MainConfiguration implements ConfigurationInterface
                     ->prototype('array')
                         ->canBeUnset()
                         ->performNoDeepMerging()
-                        ->beforeNormalization()->ifString()->then(function ($v) { return ['algorithm' => $v]; })->end()
+                        ->beforeNormalization()->ifString()->then(fn ($v) => ['algorithm' => $v])->end()
                         ->children()
                             ->scalarNode('algorithm')
                                 ->cannotBeEmpty()
                                 ->validate()
-                                    ->ifTrue(function ($v) { return !\is_string($v); })
+                                    ->ifTrue(fn ($v) => !\is_string($v))
                                     ->thenInvalid('You must provide a string value.')
                                 ->end()
                             ->end()

@@ -20,8 +20,6 @@ use Symfony\Component\Form\Extension\Core\CoreExtension;
  */
 class FormFactoryBuilder implements FormFactoryBuilderInterface
 {
-    private bool $forceCoreExtension;
-
     private ResolvedFormTypeFactoryInterface $resolvedTypeFactory;
 
     /**
@@ -44,14 +42,11 @@ class FormFactoryBuilder implements FormFactoryBuilderInterface
      */
     private array $typeGuessers = [];
 
-    public function __construct(bool $forceCoreExtension = false)
-    {
-        $this->forceCoreExtension = $forceCoreExtension;
+    public function __construct(
+        private bool $forceCoreExtension = false,
+    ) {
     }
 
-    /**
-     * {@inheritdoc}
-     */
     public function setResolvedTypeFactory(ResolvedFormTypeFactoryInterface $resolvedTypeFactory): static
     {
         $this->resolvedTypeFactory = $resolvedTypeFactory;
@@ -59,9 +54,6 @@ class FormFactoryBuilder implements FormFactoryBuilderInterface
         return $this;
     }
 
-    /**
-     * {@inheritdoc}
-     */
     public function addExtension(FormExtensionInterface $extension): static
     {
         $this->extensions[] = $extension;
@@ -69,9 +61,6 @@ class FormFactoryBuilder implements FormFactoryBuilderInterface
         return $this;
     }
 
-    /**
-     * {@inheritdoc}
-     */
     public function addExtensions(array $extensions): static
     {
         $this->extensions = array_merge($this->extensions, $extensions);
@@ -79,9 +68,6 @@ class FormFactoryBuilder implements FormFactoryBuilderInterface
         return $this;
     }
 
-    /**
-     * {@inheritdoc}
-     */
     public function addType(FormTypeInterface $type): static
     {
         $this->types[] = $type;
@@ -89,9 +75,6 @@ class FormFactoryBuilder implements FormFactoryBuilderInterface
         return $this;
     }
 
-    /**
-     * {@inheritdoc}
-     */
     public function addTypes(array $types): static
     {
         foreach ($types as $type) {
@@ -101,9 +84,6 @@ class FormFactoryBuilder implements FormFactoryBuilderInterface
         return $this;
     }
 
-    /**
-     * {@inheritdoc}
-     */
     public function addTypeExtension(FormTypeExtensionInterface $typeExtension): static
     {
         foreach ($typeExtension::getExtendedTypes() as $extendedType) {
@@ -113,9 +93,6 @@ class FormFactoryBuilder implements FormFactoryBuilderInterface
         return $this;
     }
 
-    /**
-     * {@inheritdoc}
-     */
     public function addTypeExtensions(array $typeExtensions): static
     {
         foreach ($typeExtensions as $typeExtension) {
@@ -125,9 +102,6 @@ class FormFactoryBuilder implements FormFactoryBuilderInterface
         return $this;
     }
 
-    /**
-     * {@inheritdoc}
-     */
     public function addTypeGuesser(FormTypeGuesserInterface $typeGuesser): static
     {
         $this->typeGuessers[] = $typeGuesser;
@@ -135,9 +109,6 @@ class FormFactoryBuilder implements FormFactoryBuilderInterface
         return $this;
     }
 
-    /**
-     * {@inheritdoc}
-     */
     public function addTypeGuessers(array $typeGuessers): static
     {
         $this->typeGuessers = array_merge($this->typeGuessers, $typeGuessers);
@@ -145,9 +116,6 @@ class FormFactoryBuilder implements FormFactoryBuilderInterface
         return $this;
     }
 
-    /**
-     * {@inheritdoc}
-     */
     public function getFormFactory(): FormFactoryInterface
     {
         $extensions = $this->extensions;

@@ -26,76 +26,50 @@ use Symfony\Component\Messenger\Transport\TransportInterface;
  */
 class DoctrineTransport implements TransportInterface, SetupableTransportInterface, MessageCountAwareInterface, ListableReceiverInterface
 {
-    private Connection $connection;
-    private SerializerInterface $serializer;
     private DoctrineReceiver $receiver;
     private DoctrineSender $sender;
 
-    public function __construct(Connection $connection, SerializerInterface $serializer)
-    {
-        $this->connection = $connection;
-        $this->serializer = $serializer;
+    public function __construct(
+        private Connection $connection,
+        private SerializerInterface $serializer,
+    ) {
     }
 
-    /**
-     * {@inheritdoc}
-     */
     public function get(): iterable
     {
         return $this->getReceiver()->get();
     }
 
-    /**
-     * {@inheritdoc}
-     */
     public function ack(Envelope $envelope): void
     {
         $this->getReceiver()->ack($envelope);
     }
 
-    /**
-     * {@inheritdoc}
-     */
     public function reject(Envelope $envelope): void
     {
         $this->getReceiver()->reject($envelope);
     }
 
-    /**
-     * {@inheritdoc}
-     */
     public function getMessageCount(): int
     {
         return $this->getReceiver()->getMessageCount();
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function all(int $limit = null): iterable
+    public function all(?int $limit = null): iterable
     {
         return $this->getReceiver()->all($limit);
     }
 
-    /**
-     * {@inheritdoc}
-     */
     public function find(mixed $id): ?Envelope
     {
         return $this->getReceiver()->find($id);
     }
 
-    /**
-     * {@inheritdoc}
-     */
     public function send(Envelope $envelope): Envelope
     {
         return $this->getSender()->send($envelope);
     }
 
-    /**
-     * {@inheritdoc}
-     */
     public function setup(): void
     {
         $this->connection->setup();
@@ -104,9 +78,9 @@ class DoctrineTransport implements TransportInterface, SetupableTransportInterfa
     /**
      * Adds the Table to the Schema if this transport uses this connection.
      */
-    public function configureSchema(Schema $schema, DbalConnection $forConnection): void
+    public function configureSchema(Schema $schema, DbalConnection $forConnection, \Closure $isSameDatabase): void
     {
-        $this->connection->configureSchema($schema, $forConnection);
+        $this->connection->configureSchema($schema, $forConnection, $isSameDatabase);
     }
 
     /**

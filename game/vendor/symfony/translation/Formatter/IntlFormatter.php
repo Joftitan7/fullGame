@@ -20,12 +20,9 @@ use Symfony\Component\Translation\Exception\LogicException;
  */
 class IntlFormatter implements IntlFormatterInterface
 {
-    private $hasMessageFormatter;
-    private $cache = [];
+    private bool $hasMessageFormatter;
+    private array $cache = [];
 
-    /**
-     * {@inheritdoc}
-     */
     public function formatIntl(string $message, string $locale, array $parameters = []): string
     {
         // MessageFormatter constructor throws an exception if the message is empty
@@ -40,7 +37,7 @@ class IntlFormatter implements IntlFormatterInterface
             try {
                 $this->cache[$locale][$message] = $formatter = new \MessageFormatter($locale, $message);
             } catch (\IntlException $e) {
-                throw new InvalidArgumentException(sprintf('Invalid message format (error #%d): ', intl_get_error_code()).intl_get_error_message(), 0, $e);
+                throw new InvalidArgumentException(\sprintf('Invalid message format (error #%d): ', intl_get_error_code()).intl_get_error_message(), 0, $e);
             }
         }
 
@@ -52,7 +49,7 @@ class IntlFormatter implements IntlFormatterInterface
         }
 
         if (false === $message = $formatter->format($parameters)) {
-            throw new InvalidArgumentException(sprintf('Unable to format message (error #%s): ', $formatter->getErrorCode()).$formatter->getErrorMessage());
+            throw new InvalidArgumentException(\sprintf('Unable to format message (error #%s): ', $formatter->getErrorCode()).$formatter->getErrorMessage());
         }
 
         return $message;

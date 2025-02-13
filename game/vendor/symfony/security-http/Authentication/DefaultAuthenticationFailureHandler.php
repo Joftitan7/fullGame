@@ -16,9 +16,9 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\HttpKernelInterface;
 use Symfony\Component\Security\Core\Exception\AuthenticationException;
-use Symfony\Component\Security\Core\Security;
 use Symfony\Component\Security\Http\HttpUtils;
 use Symfony\Component\Security\Http\ParameterBagUtils;
+use Symfony\Component\Security\Http\SecurityRequestAttributes;
 
 /**
  * Class with the default authentication failure handling logic.
@@ -32,22 +32,20 @@ use Symfony\Component\Security\Http\ParameterBagUtils;
  */
 class DefaultAuthenticationFailureHandler implements AuthenticationFailureHandlerInterface
 {
-    protected $httpKernel;
-    protected $httpUtils;
-    protected $logger;
-    protected $options;
-    protected $defaultOptions = [
+    protected array $options;
+    protected array $defaultOptions = [
         'failure_path' => null,
         'failure_forward' => false,
         'login_path' => '/login',
         'failure_path_parameter' => '_failure_path',
     ];
 
-    public function __construct(HttpKernelInterface $httpKernel, HttpUtils $httpUtils, array $options = [], LoggerInterface $logger = null)
-    {
-        $this->httpKernel = $httpKernel;
-        $this->httpUtils = $httpUtils;
-        $this->logger = $logger;
+    public function __construct(
+        protected HttpKernelInterface $httpKernel,
+        protected HttpUtils $httpUtils,
+        array $options = [],
+        protected ?LoggerInterface $logger = null,
+    ) {
         $this->setOptions($options);
     }
 
@@ -59,14 +57,11 @@ class DefaultAuthenticationFailureHandler implements AuthenticationFailureHandle
         return $this->options;
     }
 
-    public function setOptions(array $options)
+    public function setOptions(array $options): void
     {
         $this->options = array_merge($this->defaultOptions, $options);
     }
 
-    /**
-     * {@inheritdoc}
-     */
     public function onAuthenticationFailure(Request $request, AuthenticationException $exception): Response
     {
         $options = $this->options;
@@ -75,7 +70,7 @@ class DefaultAuthenticationFailureHandler implements AuthenticationFailureHandle
         if (\is_string($failureUrl) && (str_starts_with($failureUrl, '/') || str_starts_with($failureUrl, 'http'))) {
             $options['failure_path'] = $failureUrl;
         } elseif ($this->logger && $failureUrl) {
-            $this->logger->debug(sprintf('Ignoring query parameter "%s": not a valid URL.', $options['failure_path_parameter']));
+            $this->logger->debug(\sprintf('Ignoring query parameter "%s": not a valid URL.', $options['failure_path_parameter']));
         }
 
         $options['failure_path'] ??= $options['login_path'];
@@ -84,14 +79,16 @@ class DefaultAuthenticationFailureHandler implements AuthenticationFailureHandle
             $this->logger?->debug('Authentication failure, forward triggered.', ['failure_path' => $options['failure_path']]);
 
             $subRequest = $this->httpUtils->createRequest($request, $options['failure_path']);
-            $subRequest->attributes->set(Security::AUTHENTICATION_ERROR, $exception);
+            $subRequest->attributes->set(SecurityRequestAttributes::AUTHENTICATION_ERROR, $exception);
 
             return $this->httpKernel->handle($subRequest, HttpKernelInterface::SUB_REQUEST);
         }
 
         $this->logger?->debug('Authentication failure, redirect triggered.', ['failure_path' => $options['failure_path']]);
 
-        $request->getSession()->set(Security::AUTHENTICATION_ERROR, $exception);
+        if (!$request->attributes->getBoolean('_stateless')) {
+            $request->getSession()->set(SecurityRequestAttributes::AUTHENTICATION_ERROR, $exception);
+        }
 
         return $this->httpUtils->createRedirectResponse($request, $options['failure_path']);
     }

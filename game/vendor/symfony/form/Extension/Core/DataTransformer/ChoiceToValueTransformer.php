@@ -17,14 +17,14 @@ use Symfony\Component\Form\Exception\TransformationFailedException;
 
 /**
  * @author Bernhard Schussek <bschussek@gmail.com>
+ *
+ * @implements DataTransformerInterface<mixed, string>
  */
 class ChoiceToValueTransformer implements DataTransformerInterface
 {
-    private ChoiceListInterface $choiceList;
-
-    public function __construct(ChoiceListInterface $choiceList)
-    {
-        $this->choiceList = $choiceList;
+    public function __construct(
+        private ChoiceListInterface $choiceList,
+    ) {
     }
 
     public function transform(mixed $choice): mixed
@@ -45,7 +45,7 @@ class ChoiceToValueTransformer implements DataTransformerInterface
                 return null;
             }
 
-            throw new TransformationFailedException(sprintf('The choice "%s" does not exist or is not unique.', $value));
+            throw new TransformationFailedException(\sprintf('The choice "%s" does not exist or is not unique.', $value));
         }
 
         return current($choices);

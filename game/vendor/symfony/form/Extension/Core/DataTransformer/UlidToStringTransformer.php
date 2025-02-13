@@ -19,6 +19,8 @@ use Symfony\Component\Uid\Ulid;
  * Transforms between a ULID string and a Ulid object.
  *
  * @author Pavel Dyakonov <wapinet@mail.ru>
+ *
+ * @implements DataTransformerInterface<Ulid, string>
  */
 class UlidToStringTransformer implements DataTransformerInterface
 {
@@ -63,7 +65,7 @@ class UlidToStringTransformer implements DataTransformerInterface
         try {
             $ulid = new Ulid($value);
         } catch (\InvalidArgumentException $e) {
-            throw new TransformationFailedException(sprintf('The value "%s" is not a valid ULID.', $value), $e->getCode(), $e);
+            throw new TransformationFailedException(\sprintf('The value "%s" is not a valid ULID.', $value), $e->getCode(), $e);
         }
 
         return $ulid;

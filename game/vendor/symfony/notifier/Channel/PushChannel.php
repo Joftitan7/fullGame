@@ -21,16 +21,14 @@ use Symfony\Component\Notifier\Recipient\RecipientInterface;
  */
 class PushChannel extends AbstractChannel
 {
-    public function notify(Notification $notification, RecipientInterface $recipient, string $transportName = null): void
+    public function notify(Notification $notification, RecipientInterface $recipient, ?string $transportName = null): void
     {
         $message = null;
         if ($notification instanceof PushNotificationInterface) {
             $message = $notification->asPushMessage($recipient, $transportName);
         }
 
-        if (null === $message) {
-            $message = PushMessage::fromNotification($notification);
-        }
+        $message ??= PushMessage::fromNotification($notification);
 
         if (null !== $transportName) {
             $message->transport($transportName);

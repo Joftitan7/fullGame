@@ -12,36 +12,27 @@
 namespace Symfony\Component\HttpKernel\Controller\ArgumentResolver;
 
 use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\HttpKernel\Controller\ArgumentValueResolverInterface;
+use Symfony\Component\HttpKernel\Controller\ValueResolverInterface;
 use Symfony\Component\HttpKernel\ControllerMetadata\ArgumentMetadata;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Uid\AbstractUid;
 
-final class UidValueResolver implements ArgumentValueResolverInterface
+final class UidValueResolver implements ValueResolverInterface
 {
-    /**
-     * {@inheritdoc}
-     */
-    public function supports(Request $request, ArgumentMetadata $argument): bool
+    public function resolve(Request $request, ArgumentMetadata $argument): array
     {
-        return !$argument->isVariadic()
-            && \is_string($request->attributes->get($argument->getName()))
-            && null !== $argument->getType()
-            && is_subclass_of($argument->getType(), AbstractUid::class, true);
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function resolve(Request $request, ArgumentMetadata $argument): iterable
-    {
-        /** @var class-string<AbstractUid> $uidClass */
-        $uidClass = $argument->getType();
+        if ($argument->isVariadic()
+            || !\is_string($value = $request->attributes->get($argument->getName()))
+            || null === ($uidClass = $argument->getType())
+            || !is_subclass_of($uidClass, AbstractUid::class, true)
+        ) {
+            return [];
+        }
 
         try {
-            return [$uidClass::fromString($request->attributes->get($argument->getName()))];
+            return [$uidClass::fromString($value)];
         } catch (\InvalidArgumentException $e) {
-            throw new NotFoundHttpException(sprintf('The uid for the "%s" parameter is invalid.', $argument->getName()), $e);
+            throw new NotFoundHttpException(\sprintf('The uid for the "%s" parameter is invalid.', $argument->getName()), $e);
         }
     }
 }

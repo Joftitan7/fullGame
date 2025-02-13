@@ -26,6 +26,7 @@ use Symfony\Component\Messenger\Retry\RetryStrategyInterface;
 use Symfony\Component\Messenger\Stamp\DelayStamp;
 use Symfony\Component\Messenger\Stamp\RedeliveryStamp;
 use Symfony\Component\Messenger\Stamp\StampInterface;
+use Symfony\Component\Messenger\Stamp\TransportMessageIdStamp;
 use Symfony\Component\Messenger\Transport\Sender\SenderInterface;
 
 /**
@@ -33,22 +34,16 @@ use Symfony\Component\Messenger\Transport\Sender\SenderInterface;
  */
 class SendFailedMessageForRetryListener implements EventSubscriberInterface
 {
-    private ContainerInterface $sendersLocator;
-    private ContainerInterface $retryStrategyLocator;
-    private ?LoggerInterface $logger;
-    private ?EventDispatcherInterface $eventDispatcher;
-    private int $historySize;
-
-    public function __construct(ContainerInterface $sendersLocator, ContainerInterface $retryStrategyLocator, LoggerInterface $logger = null, EventDispatcherInterface $eventDispatcher = null, int $historySize = 10)
-    {
-        $this->sendersLocator = $sendersLocator;
-        $this->retryStrategyLocator = $retryStrategyLocator;
-        $this->logger = $logger;
-        $this->eventDispatcher = $eventDispatcher;
-        $this->historySize = $historySize;
+    public function __construct(
+        private ContainerInterface $sendersLocator,
+        private ContainerInterface $retryStrategyLocator,
+        private ?LoggerInterface $logger = null,
+        private ?EventDispatcherInterface $eventDispatcher = null,
+        private int $historySize = 10,
+    ) {
     }
 
-    public function onMessageFailed(WorkerMessageFailedEvent $event)
+    public function onMessageFailed(WorkerMessageFailedEvent $event): void
     {
         $retryStrategy = $this->getRetryStrategyForTransport($event->getReceiverName());
         $envelope = $event->getEnvelope();
@@ -56,7 +51,8 @@ class SendFailedMessageForRetryListener implements EventSubscriberInterface
 
         $message = $envelope->getMessage();
         $context = [
-            'class' => \get_class($message),
+            'class' => $message::class,
+            'message_id' => $envelope->last(TransportMessageIdStamp::class)?->getId(),
         ];
 
         $shouldRetry = $retryStrategy && $this->shouldRetry($throwable, $envelope, $retryStrategy);
@@ -67,7 +63,7 @@ class SendFailedMessageForRetryListener implements EventSubscriberInterface
 
             ++$retryCount;
 
-            $delay = $retryStrategy->getWaitingTime($envelope, $throwable);
+            $delay = $this->getWaitingTime($envelope, $throwable, $retryStrategy);
 
             $this->logger?->warning('Error thrown while handling message {class}. Sending for retry #{retryCount} using {delay} ms delay. Error: "{error}"', $context + ['retryCount' => $retryCount, 'delay' => $delay, 'error' => $throwable->getMessage(), 'exception' => $throwable]);
 
@@ -75,7 +71,7 @@ class SendFailedMessageForRetryListener implements EventSubscriberInterface
             $retryEnvelope = $this->withLimitedHistory($envelope, new DelayStamp($delay), new RedeliveryStamp($retryCount));
 
             // re-send the message for retry
-            $this->getSenderForTransport($event->getReceiverName())->send($retryEnvelope);
+            $retryEnvelope = $this->getSenderForTransport($event->getReceiverName())->send($retryEnvelope);
 
             $this->eventDispatcher?->dispatch(new WorkerMessageRetriedEvent($retryEnvelope, $event->getReceiverName()));
         } else {
@@ -89,7 +85,7 @@ class SendFailedMessageForRetryListener implements EventSubscriberInterface
     private function withLimitedHistory(Envelope $envelope, StampInterface ...$stamps): Envelope
     {
         foreach ($stamps as $stamp) {
-            $history = $envelope->all(\get_class($stamp));
+            $history = $envelope->all($stamp::class);
             if (\count($history) < $this->historySize) {
                 $envelope = $envelope->with($stamp);
                 continue;
@@ -101,7 +97,7 @@ class SendFailedMessageForRetryListener implements EventSubscriberInterface
                 [$stamp]
             );
 
-            $envelope = $envelope->withoutAll(\get_class($stamp))->with(...$history);
+            $envelope = $envelope->withoutAll($stamp::class)->with(...$history);
         }
 
         return $envelope;
@@ -125,7 +121,7 @@ class SendFailedMessageForRetryListener implements EventSubscriberInterface
         // if ALL nested Exceptions are an instance of UnrecoverableExceptionInterface we should not retry
         if ($e instanceof HandlerFailedException) {
             $shouldNotRetry = true;
-            foreach ($e->getNestedExceptions() as $nestedException) {
+            foreach ($e->getWrappedExceptions() as $nestedException) {
                 if ($nestedException instanceof RecoverableExceptionInterface) {
                     return true;
                 }
@@ -147,6 +143,30 @@ class SendFailedMessageForRetryListener implements EventSubscriberInterface
         return $retryStrategy->isRetryable($envelope, $e);
     }
 
+    private function getWaitingTime(Envelope $envelope, \Throwable $throwable, RetryStrategyInterface $retryStrategy): int
+    {
+        $delay = null;
+        if ($throwable instanceof RecoverableExceptionInterface && method_exists($throwable, 'getRetryDelay')) {
+            $delay = $throwable->getRetryDelay();
+        }
+
+        if ($throwable instanceof HandlerFailedException) {
+            foreach ($throwable->getWrappedExceptions() as $nestedException) {
+                if (!$nestedException instanceof RecoverableExceptionInterface
+                    || !method_exists($nestedException, 'getRetryDelay')
+                    || 0 > $retryDelay = $nestedException->getRetryDelay() ?? -1
+                ) {
+                    continue;
+                }
+                if ($retryDelay < ($delay ?? \PHP_INT_MAX)) {
+                    $delay = $retryDelay;
+                }
+            }
+        }
+
+        return $delay ?? $retryStrategy->getWaitingTime($envelope, $throwable);
+    }
+
     private function getRetryStrategyForTransport(string $alias): ?RetryStrategyInterface
     {
         if ($this->retryStrategyLocator->has($alias)) {
@@ -162,6 +182,6 @@ class SendFailedMessageForRetryListener implements EventSubscriberInterface
             return $this->sendersLocator->get($alias);
         }
 
-        throw new RuntimeException(sprintf('Could not find sender "%s" based on the same receiver to send the failed message to for retry.', $alias));
+        throw new RuntimeException(\sprintf('Could not find sender "%s" based on the same receiver to send the failed message to for retry.', $alias));
     }
 }

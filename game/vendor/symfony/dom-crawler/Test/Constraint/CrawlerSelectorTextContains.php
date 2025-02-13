@@ -16,33 +16,26 @@ use Symfony\Component\DomCrawler\Crawler;
 
 final class CrawlerSelectorTextContains extends Constraint
 {
-    private string $selector;
-    private string $expectedText;
     private bool $hasNode = false;
     private string $nodeText;
 
-    public function __construct(string $selector, string $expectedText)
-    {
-        $this->selector = $selector;
-        $this->expectedText = $expectedText;
+    public function __construct(
+        private string $selector,
+        private string $expectedText,
+    ) {
     }
 
-    /**
-     * {@inheritdoc}
-     */
     public function toString(): string
     {
         if ($this->hasNode) {
-            return sprintf('the text "%s" of the node matching selector "%s" contains "%s"', $this->nodeText, $this->selector, $this->expectedText);
+            return \sprintf('the text "%s" of the node matching selector "%s" contains "%s"', $this->nodeText, $this->selector, $this->expectedText);
         }
 
-        return sprintf('the Crawler has a node matching selector "%s"', $this->selector);
+        return \sprintf('the Crawler has a node matching selector "%s"', $this->selector);
     }
 
     /**
      * @param Crawler $crawler
-     *
-     * {@inheritdoc}
      */
     protected function matches($crawler): bool
     {
@@ -61,8 +54,6 @@ final class CrawlerSelectorTextContains extends Constraint
 
     /**
      * @param Crawler $crawler
-     *
-     * {@inheritdoc}
      */
     protected function failureDescription($crawler): string
     {

@@ -21,10 +21,7 @@ use Symfony\Component\DependencyInjection\Exception\InvalidArgumentException;
  */
 class IniFileLoader extends FileLoader
 {
-    /**
-     * {@inheritdoc}
-     */
-    public function load(mixed $resource, string $type = null): mixed
+    public function load(mixed $resource, ?string $type = null): mixed
     {
         $path = $this->locator->locate($resource);
 
@@ -33,7 +30,7 @@ class IniFileLoader extends FileLoader
         // first pass to catch parsing errors
         $result = parse_ini_file($path, true);
         if (false === $result || [] === $result) {
-            throw new InvalidArgumentException(sprintf('The "%s" file is not valid.', $resource));
+            throw new InvalidArgumentException(\sprintf('The "%s" file is not valid.', $resource));
         }
 
         // real raw parsing
@@ -41,7 +38,11 @@ class IniFileLoader extends FileLoader
 
         if (isset($result['parameters']) && \is_array($result['parameters'])) {
             foreach ($result['parameters'] as $key => $value) {
-                $this->container->setParameter($key, $this->phpize($value));
+                if (\is_array($value)) {
+                    $this->container->setParameter($key, array_map($this->phpize(...), $value));
+                } else {
+                    $this->container->setParameter($key, $this->phpize($value));
+                }
             }
         }
 
@@ -54,10 +55,7 @@ class IniFileLoader extends FileLoader
         return null;
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function supports(mixed $resource, string $type = null): bool
+    public function supports(mixed $resource, ?string $type = null): bool
     {
         if (!\is_string($resource)) {
             return false;
@@ -91,8 +89,8 @@ class IniFileLoader extends FileLoader
             'off' === $lowercaseValue,
             'none' === $lowercaseValue => false,
             isset($value[1]) && (
-                ("'" === $value[0] && "'" === $value[\strlen($value) - 1]) ||
-                ('"' === $value[0] && '"' === $value[\strlen($value) - 1])
+                ("'" === $value[0] && "'" === $value[\strlen($value) - 1])
+                || ('"' === $value[0] && '"' === $value[\strlen($value) - 1])
             ) => substr($value, 1, -1), // quoted string
             default => XmlUtils::phpize($value),
         };

@@ -28,8 +28,6 @@ use Symfony\Component\Intl\Locale;
  */
 class BundleEntryReader implements BundleEntryReaderInterface
 {
-    private BundleReaderInterface $reader;
-
     /**
      * A mapping of locale aliases to locales.
      */
@@ -38,9 +36,9 @@ class BundleEntryReader implements BundleEntryReaderInterface
     /**
      * Creates an entry reader based on the given resource bundle reader.
      */
-    public function __construct(BundleReaderInterface $reader)
-    {
-        $this->reader = $reader;
+    public function __construct(
+        private BundleReaderInterface $reader,
+    ) {
     }
 
     /**
@@ -53,22 +51,16 @@ class BundleEntryReader implements BundleEntryReaderInterface
      *
      * @param array $localeAliases A mapping of locale aliases to locales
      */
-    public function setLocaleAliases(array $localeAliases)
+    public function setLocaleAliases(array $localeAliases): void
     {
         $this->localeAliases = $localeAliases;
     }
 
-    /**
-     * {@inheritdoc}
-     */
     public function read(string $path, string $locale): mixed
     {
         return $this->reader->read($path, $locale);
     }
 
-    /**
-     * {@inheritdoc}
-     */
     public function readEntry(string $path, string $locale, array $indices, bool $fallback = true): mixed
     {
         $entry = null;
@@ -154,7 +146,7 @@ class BundleEntryReader implements BundleEntryReaderInterface
 
         // Entry is still NULL, read error occurred. Throw an exception
         // containing the detailed path and locale
-        $errorMessage = sprintf(
+        $errorMessage = \sprintf(
             'Couldn\'t read the indices [%s] for the locale "%s" in "%s".',
             implode('][', $indices),
             $locale,
@@ -166,7 +158,7 @@ class BundleEntryReader implements BundleEntryReaderInterface
             // Remove original locale
             array_shift($testedLocales);
 
-            $errorMessage .= sprintf(
+            $errorMessage .= \sprintf(
                 ' The indices also couldn\'t be found for the fallback locale(s) "%s".',
                 implode('", "', $testedLocales)
             );

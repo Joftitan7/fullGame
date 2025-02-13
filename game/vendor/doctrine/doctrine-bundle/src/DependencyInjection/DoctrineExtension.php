@@ -22,13 +22,21 @@ use Doctrine\ORM\Configuration as OrmConfiguration;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Events;
 use Doctrine\ORM\Id\AbstractIdGenerator;
+use Doctrine\ORM\Mapping\Driver\AnnotationDriver;
+use Doctrine\ORM\Mapping\Driver\AttributeDriver;
+use Doctrine\ORM\Mapping\Driver\PHPDriver as LegacyPHPDriver;
 use Doctrine\ORM\Mapping\Driver\SimplifiedXmlDriver;
+use Doctrine\ORM\Mapping\Driver\SimplifiedYamlDriver;
+use Doctrine\ORM\Mapping\Driver\StaticPHPDriver as LegacyStaticPHPDriver;
 use Doctrine\ORM\Proxy\Autoloader;
 use Doctrine\ORM\Proxy\ProxyFactory;
 use Doctrine\ORM\Tools\Console\Command\ConvertMappingCommand;
 use Doctrine\ORM\Tools\Console\Command\EnsureProductionSettingsCommand;
 use Doctrine\ORM\Tools\Export\ClassMetadataExporter;
 use Doctrine\ORM\UnitOfWork;
+use Doctrine\Persistence\Mapping\Driver\MappingDriverChain;
+use Doctrine\Persistence\Mapping\Driver\PHPDriver;
+use Doctrine\Persistence\Mapping\Driver\StaticPHPDriver;
 use Doctrine\Persistence\Reflection\RuntimeReflectionProperty;
 use InvalidArgumentException;
 use LogicException;
@@ -83,7 +91,7 @@ use const PHP_VERSION_ID;
  * DoctrineExtension is an extension for the Doctrine DBAL and ORM library.
  *
  * @final since 2.9
- * @psalm-type DBALConfig = array{
+ * @phpstan-type DBALConfig = array{
  *      connections: array<string, array{logging: bool, profiling: bool, profiling_collect_backtrace: bool, idle_connection_ttl: int}>,
  *      driver_schemes: array<string, string>,
  *      default_connection: string,
@@ -571,7 +579,6 @@ class DoctrineExtension extends AbstractDoctrineExtension
 
         $entityManagers = [];
         foreach (array_keys($config['entity_managers']) as $name) {
-            /** @psalm-suppress InvalidArrayOffset */
             $entityManagers[$name] = sprintf('doctrine.orm.%s_entity_manager', $name);
         }
 
@@ -1163,7 +1170,38 @@ class DoctrineExtension extends AbstractDoctrineExtension
 
     protected function getMetadataDriverClass(string $driverType): string
     {
-        return '%' . $this->getObjectManagerElementName('metadata.' . $driverType . '.class') . '%';
+        switch ($driverType) {
+            case 'driver_chain':
+                return MappingDriverChain::class;
+
+            case 'annotation':
+                if (! class_exists(AnnotationDriver::class)) {
+                    throw new LogicException('The annotation driver is only available in doctrine/orm v2.');
+                }
+
+                return AnnotationDriver::class;
+
+            case 'xml':
+                return SimplifiedXmlDriver::class;
+
+            case 'yml':
+                /* @phpstan-ignore class.notFound */
+                return SimplifiedYamlDriver::class;
+
+            case 'php':
+                /* @phpstan-ignore class.notFound */
+                return class_exists(PHPDriver::class) ? PHPDriver::class : LegacyPHPDriver::class;
+
+            case 'staticphp':
+                /* @phpstan-ignore class.notFound */
+                return class_exists(StaticPHPDriver::class) ? StaticPHPDriver::class : LegacyStaticPHPDriver::class;
+
+            case 'attribute':
+                return AttributeDriver::class;
+
+            default:
+                throw new LogicException(sprintf('Unknown "%s" metadata driver type.', $driverType));
+        }
     }
 
     private function loadMessengerServices(ContainerBuilder $container): void

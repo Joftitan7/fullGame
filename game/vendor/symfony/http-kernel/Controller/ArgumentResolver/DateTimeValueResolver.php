@@ -11,9 +11,10 @@
 
 namespace Symfony\Component\HttpKernel\Controller\ArgumentResolver;
 
+use Psr\Clock\ClockInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Attribute\MapDateTime;
-use Symfony\Component\HttpKernel\Controller\ArgumentValueResolverInterface;
+use Symfony\Component\HttpKernel\Controller\ValueResolverInterface;
 use Symfony\Component\HttpKernel\ControllerMetadata\ArgumentMetadata;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
@@ -23,34 +24,34 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
  * @author Benjamin Eberlei <kontakt@beberlei.de>
  * @author Tim Goudriaan <tim@codedmonkey.com>
  */
-final class DateTimeValueResolver implements ArgumentValueResolverInterface
+final class DateTimeValueResolver implements ValueResolverInterface
 {
-    /**
-     * {@inheritdoc}
-     */
-    public function supports(Request $request, ArgumentMetadata $argument): bool
-    {
-        return is_a($argument->getType(), \DateTimeInterface::class, true) && $request->attributes->has($argument->getName());
+    public function __construct(
+        private readonly ?ClockInterface $clock = null,
+    ) {
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function resolve(Request $request, ArgumentMetadata $argument): iterable
+    public function resolve(Request $request, ArgumentMetadata $argument): array
     {
+        if (!is_a($argument->getType(), \DateTimeInterface::class, true) || !$request->attributes->has($argument->getName())) {
+            return [];
+        }
+
         $value = $request->attributes->get($argument->getName());
         $class = \DateTimeInterface::class === $argument->getType() ? \DateTimeImmutable::class : $argument->getType();
 
-        if ($value instanceof \DateTimeInterface) {
-            yield $value instanceof $class ? $value : $class::createFromInterface($value);
-
-            return;
+        if (!$value) {
+            if ($argument->isNullable()) {
+                return [null];
+            }
+            if (!$this->clock) {
+                return [new $class()];
+            }
+            $value = $this->clock->now();
         }
 
-        if ($argument->isNullable() && !$value) {
-            yield null;
-
-            return;
+        if ($value instanceof \DateTimeInterface) {
+            return [$value instanceof $class ? $value : $class::createFromInterface($value)];
         }
 
         $format = null;
@@ -61,7 +62,7 @@ final class DateTimeValueResolver implements ArgumentValueResolverInterface
         }
 
         if (null !== $format) {
-            $date = $class::createFromFormat($format, $value);
+            $date = $class::createFromFormat($format, $value, $this->clock?->now()->getTimeZone());
 
             if (($class::getLastErrors() ?: ['warning_count' => 0])['warning_count']) {
                 $date = false;
@@ -71,16 +72,16 @@ final class DateTimeValueResolver implements ArgumentValueResolverInterface
                 $value = '@'.$value;
             }
             try {
-                $date = new $class($value ?? 'now');
+                $date = new $class($value, $this->clock?->now()->getTimeZone());
             } catch (\Exception) {
                 $date = false;
             }
         }
 
         if (!$date) {
-            throw new NotFoundHttpException(sprintf('Invalid date given for parameter "%s".', $argument->getName()));
+            throw new NotFoundHttpException(\sprintf('Invalid date given for parameter "%s".', $argument->getName()));
         }
 
-        yield $date;
+        return [$date];
     }
 }

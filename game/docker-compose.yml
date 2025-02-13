@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  php:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: php-eindopdracht
+    ports:
+      - "9002:80"
+    volumes:
+      - .:/var/www/html
+      - ./php.ini:/usr/local/etc/php/php.ini
+    depends_on:
+      - mysql
+    command: php -S 0.0.0.0:80 -t /var/www/html/public
+    working_dir: /var/www/html
+
+  mysql:
+    image: mysql:8.0
+    container_name: mysql-eindopdracht
+    ports:
+      - "3312:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: eindopdracht
+      MYSQL_USER: user
+      MYSQL_PASSWORD: user
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+volumes:
+  mysql_data:

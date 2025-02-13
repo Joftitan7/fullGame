@@ -23,14 +23,12 @@ use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
  */
 class UserPasswordHasher implements UserPasswordHasherInterface
 {
-    private PasswordHasherFactoryInterface $hasherFactory;
-
-    public function __construct(PasswordHasherFactoryInterface $hasherFactory)
-    {
-        $this->hasherFactory = $hasherFactory;
+    public function __construct(
+        private PasswordHasherFactoryInterface $hasherFactory,
+    ) {
     }
 
-    public function hashPassword(PasswordAuthenticatedUserInterface $user, string $plainPassword): string
+    public function hashPassword(PasswordAuthenticatedUserInterface $user, #[\SensitiveParameter] string $plainPassword): string
     {
         $salt = null;
         if ($user instanceof LegacyPasswordAuthenticatedUserInterface) {
@@ -42,7 +40,7 @@ class UserPasswordHasher implements UserPasswordHasherInterface
         return $hasher->hash($plainPassword, $salt);
     }
 
-    public function isPasswordValid(PasswordAuthenticatedUserInterface $user, string $plainPassword): bool
+    public function isPasswordValid(PasswordAuthenticatedUserInterface $user, #[\SensitiveParameter] string $plainPassword): bool
     {
         $salt = null;
         if ($user instanceof LegacyPasswordAuthenticatedUserInterface) {

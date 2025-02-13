@@ -15,6 +15,7 @@ use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Event\RequestEvent;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 use Symfony\Component\Security\Core\Authentication\Token\SwitchUserToken;
 use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
@@ -41,38 +42,25 @@ class SwitchUserListener extends AbstractListener
 {
     public const EXIT_VALUE = '_exit';
 
-    private TokenStorageInterface $tokenStorage;
-    private UserProviderInterface $provider;
-    private UserCheckerInterface $userChecker;
-    private string $firewallName;
-    private AccessDecisionManagerInterface $accessDecisionManager;
-    private string $usernameParameter;
-    private string $role;
-    private ?LoggerInterface $logger;
-    private ?EventDispatcherInterface $dispatcher;
-    private bool $stateless;
-
-    public function __construct(TokenStorageInterface $tokenStorage, UserProviderInterface $provider, UserCheckerInterface $userChecker, string $firewallName, AccessDecisionManagerInterface $accessDecisionManager, LoggerInterface $logger = null, string $usernameParameter = '_switch_user', string $role = 'ROLE_ALLOWED_TO_SWITCH', EventDispatcherInterface $dispatcher = null, bool $stateless = false)
-    {
+    public function __construct(
+        private TokenStorageInterface $tokenStorage,
+        private UserProviderInterface $provider,
+        private UserCheckerInterface $userChecker,
+        private string $firewallName,
+        private AccessDecisionManagerInterface $accessDecisionManager,
+        private ?LoggerInterface $logger = null,
+        private string $usernameParameter = '_switch_user',
+        private string $role = 'ROLE_ALLOWED_TO_SWITCH',
+        private ?EventDispatcherInterface $dispatcher = null,
+        private bool $stateless = false,
+        private ?UrlGeneratorInterface $urlGenerator = null,
+        private ?string $targetRoute = null,
+    ) {
         if ('' === $firewallName) {
             throw new \InvalidArgumentException('$firewallName must not be empty.');
         }
-
-        $this->tokenStorage = $tokenStorage;
-        $this->provider = $provider;
-        $this->userChecker = $userChecker;
-        $this->firewallName = $firewallName;
-        $this->accessDecisionManager = $accessDecisionManager;
-        $this->usernameParameter = $usernameParameter;
-        $this->role = $role;
-        $this->logger = $logger;
-        $this->dispatcher = $dispatcher;
-        $this->stateless = $stateless;
     }
 
-    /**
-     * {@inheritdoc}
-     */
     public function supports(Request $request): ?bool
     {
         // usernames can be falsy
@@ -97,7 +85,7 @@ class SwitchUserListener extends AbstractListener
      *
      * @throws \LogicException if switching to a user failed
      */
-    public function authenticate(RequestEvent $event)
+    public function authenticate(RequestEvent $event): void
     {
         $request = $event->getRequest();
 
@@ -109,7 +97,7 @@ class SwitchUserListener extends AbstractListener
         }
 
         if (self::EXIT_VALUE === $username) {
-            $this->tokenStorage->setToken($this->attemptExitUser($request));
+            $this->attemptExitUser($request);
         } else {
             try {
                 $this->tokenStorage->setToken($this->attemptSwitchUser($request, $username));
@@ -122,7 +110,7 @@ class SwitchUserListener extends AbstractListener
         if (!$this->stateless) {
             $request->query->remove($this->usernameParameter);
             $request->server->set('QUERY_STRING', http_build_query($request->query->all(), '', '&'));
-            $response = new RedirectResponse($request->getUri(), 302);
+            $response = new RedirectResponse($this->urlGenerator && $this->targetRoute ? $this->urlGenerator->generate($this->targetRoute) : $request->getUri(), 302);
 
             $event->setResponse($response);
         }
@@ -149,7 +137,7 @@ class SwitchUserListener extends AbstractListener
         }
 
         $currentUsername = $token->getUserIdentifier();
-        $nonExistentUsername = '_'.md5(random_bytes(8).$username);
+        $nonExistentUsername = '_'.hash('xxh128', random_bytes(8).$username);
 
         // To protect against user enumeration via timing measurements
         // we always load both successfully and unsuccessfully
@@ -175,10 +163,9 @@ class SwitchUserListener extends AbstractListener
 
         $this->logger?->info('Attempting to switch to user.', ['username' => $username]);
 
-        $this->userChecker->checkPostAuth($user);
+        $this->userChecker->checkPostAuth($user, $token);
 
         $roles = $user->getRoles();
-        $roles[] = 'ROLE_PREVIOUS_ADMIN';
         $originatedFromUri = str_replace('/&', '/?', preg_replace('#[&?]'.$this->usernameParameter.'=[^&]*#', '', $request->getRequestUri()));
         $token = new SwitchUserToken($user, $this->firewallName, $roles, $token, $originatedFromUri);
 
@@ -210,6 +197,8 @@ class SwitchUserListener extends AbstractListener
             $this->dispatcher->dispatch($switchEvent, SecurityEvents::SWITCH_USER);
             $original = $switchEvent->getToken();
         }
+
+        $this->tokenStorage->setToken($original);
 
         return $original;
     }

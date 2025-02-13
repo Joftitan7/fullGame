@@ -26,21 +26,18 @@ class XmlFileLoader extends FileLoader
     /**
      * The XML nodes of the mapping file.
      *
-     * @var \SimpleXMLElement[]|null
+     * @var \SimpleXMLElement[]
      */
-    protected $classes;
+    protected array $classes;
 
     public function __construct(string $file)
     {
         $this->file = $file;
     }
 
-    /**
-     * {@inheritdoc}
-     */
     public function loadClassMetadata(ClassMetadata $metadata): bool
     {
-        if (null === $this->classes) {
+        if (!isset($this->classes)) {
             $this->loadClassesFromXml();
         }
 
@@ -62,7 +59,7 @@ class XmlFileLoader extends FileLoader
      */
     public function getMappedClasses(): array
     {
-        if (null === $this->classes) {
+        if (!isset($this->classes)) {
             $this->loadClassesFromXml();
         }
 
@@ -83,7 +80,9 @@ class XmlFileLoader extends FileLoader
         foreach ($nodes as $node) {
             if (\count($node) > 0) {
                 if (\count($node->value) > 0) {
-                    $options = $this->parseValues($node->value);
+                    $options = [
+                        'value' => $this->parseValues($node->value),
+                    ];
                 } elseif (\count($node->constraint) > 0) {
                     $options = $this->parseConstraints($node->constraint);
                 } elseif (\count($node->option) > 0) {
@@ -95,6 +94,10 @@ class XmlFileLoader extends FileLoader
                 $options = XmlUtils::phpize(trim($node));
             } else {
                 $options = null;
+            }
+
+            if (isset($options['groups']) && !\is_array($options['groups'])) {
+                $options['groups'] = (array) $options['groups'];
             }
 
             $constraints[] = $this->newConstraint((string) $node['name'], $options);
@@ -182,7 +185,7 @@ class XmlFileLoader extends FileLoader
         return simplexml_import_dom($dom);
     }
 
-    private function loadClassesFromXml()
+    private function loadClassesFromXml(): void
     {
         parent::__construct($this->file);
 
@@ -201,9 +204,10 @@ class XmlFileLoader extends FileLoader
         }
     }
 
-    private function loadClassMetadataFromXml(ClassMetadata $metadata, \SimpleXMLElement $classDescription)
+    private function loadClassMetadataFromXml(ClassMetadata $metadata, \SimpleXMLElement $classDescription): void
     {
         if (\count($classDescription->{'group-sequence-provider'}) > 0) {
+            $metadata->setGroupProvider($classDescription->{'group-sequence-provider'}[0]->value ?: null);
             $metadata->setGroupSequenceProvider(true);
         }
 

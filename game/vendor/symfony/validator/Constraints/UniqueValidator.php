@@ -21,10 +21,7 @@ use Symfony\Component\Validator\Exception\UnexpectedValueException;
  */
 class UniqueValidator extends ConstraintValidator
 {
-    /**
-     * {@inheritdoc}
-     */
-    public function validate(mixed $value, Constraint $constraint)
+    public function validate(mixed $value, Constraint $constraint): void
     {
         if (!$constraint instanceof Unique) {
             throw new UnexpectedTypeException($constraint, Unique::class);
@@ -42,18 +39,23 @@ class UniqueValidator extends ConstraintValidator
 
         $collectionElements = [];
         $normalizer = $this->getNormalizer($constraint);
-        foreach ($value as $element) {
+        foreach ($value as $index => $element) {
+            $element = $normalizer($element);
+
             if ($fields && !$element = $this->reduceElementKeys($fields, $element)) {
                 continue;
             }
 
-            $element = $normalizer($element);
-
             if (\in_array($element, $collectionElements, true)) {
-                $this->context->buildViolation($constraint->message)
-                    ->setParameter('{{ value }}', $this->formatValue($value))
-                    ->setCode(Unique::IS_NOT_UNIQUE)
-                    ->addViolation();
+                $violationBuilder = $this->context->buildViolation($constraint->message)
+                    ->setParameter('{{ value }}', $this->formatValue($element))
+                    ->setCode(Unique::IS_NOT_UNIQUE);
+
+                if (null !== $constraint->errorPath) {
+                    $violationBuilder->atPath("[$index].{$constraint->errorPath}");
+                }
+
+                $violationBuilder->addViolation();
 
                 return;
             }
@@ -63,13 +65,7 @@ class UniqueValidator extends ConstraintValidator
 
     private function getNormalizer(Unique $unique): callable
     {
-        if (null === $unique->normalizer) {
-            return static function ($value) {
-                return $value;
-            };
-        }
-
-        return $unique->normalizer;
+        return $unique->normalizer ?? static fn ($value) => $value;
     }
 
     private function reduceElementKeys(array $fields, array $element): array

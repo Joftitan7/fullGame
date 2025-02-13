@@ -36,17 +36,12 @@ use Symfony\Component\Security\Http\Authenticator\Passport\SelfValidatingPasspor
  */
 abstract class AbstractPreAuthenticatedAuthenticator implements InteractiveAuthenticatorInterface
 {
-    private UserProviderInterface $userProvider;
-    private TokenStorageInterface $tokenStorage;
-    private string $firewallName;
-    private ?LoggerInterface $logger;
-
-    public function __construct(UserProviderInterface $userProvider, TokenStorageInterface $tokenStorage, string $firewallName, LoggerInterface $logger = null)
-    {
-        $this->userProvider = $userProvider;
-        $this->tokenStorage = $tokenStorage;
-        $this->firewallName = $firewallName;
-        $this->logger = $logger;
+    public function __construct(
+        private UserProviderInterface $userProvider,
+        private TokenStorageInterface $tokenStorage,
+        private string $firewallName,
+        private ?LoggerInterface $logger = null,
+    ) {
     }
 
     /**
@@ -91,10 +86,9 @@ abstract class AbstractPreAuthenticatedAuthenticator implements InteractiveAuthe
 
     public function authenticate(Request $request): Passport
     {
-        return new SelfValidatingPassport(
-            new UserBadge($request->attributes->get('_pre_authenticated_username'), $this->userProvider->loadUserByIdentifier(...)),
-            [new PreAuthenticatedUserBadge()]
-        );
+        $userBadge = new UserBadge($request->attributes->get('_pre_authenticated_username'), $this->userProvider->loadUserByIdentifier(...));
+
+        return new SelfValidatingPassport($userBadge, [new PreAuthenticatedUserBadge()]);
     }
 
     public function createToken(Passport $passport, string $firewallName): TokenInterface

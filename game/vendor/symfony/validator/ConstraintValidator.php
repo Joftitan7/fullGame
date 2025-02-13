@@ -31,15 +31,9 @@ abstract class ConstraintValidator implements ConstraintValidatorInterface
      */
     public const OBJECT_TO_STRING = 2;
 
-    /**
-     * @var ExecutionContextInterface
-     */
-    protected $context;
+    protected ExecutionContextInterface $context;
 
-    /**
-     * {@inheritdoc}
-     */
-    public function initialize(ExecutionContextInterface $context)
+    public function initialize(ExecutionContextInterface $context): void
     {
         $this->context = $context;
     }
@@ -82,13 +76,17 @@ abstract class ConstraintValidator implements ConstraintValidatorInterface
             if (class_exists(\IntlDateFormatter::class)) {
                 $formatter = new \IntlDateFormatter(\Locale::getDefault(), \IntlDateFormatter::MEDIUM, \IntlDateFormatter::SHORT, 'UTC');
 
-                return $formatter->format(new \DateTime(
+                return $formatter->format(new \DateTimeImmutable(
                     $value->format('Y-m-d H:i:s.u'),
                     new \DateTimeZone('UTC')
                 ));
             }
 
             return $value->format('Y-m-d H:i:s');
+        }
+
+        if ($value instanceof \UnitEnum) {
+            return $value->name;
         }
 
         if (\is_object($value)) {

@@ -17,8 +17,9 @@ use Symfony\Component\Validator\Constraint;
 use Symfony\Component\Validator\Exception\LogicException;
 
 /**
- * @Annotation
- * @Target({"CLASS", "PROPERTY", "METHOD", "ANNOTATION"})
+ * Validates a value using an expression from the Expression Language component.
+ *
+ * @see https://symfony.com/doc/current/components/expression_language.html
  *
  * @author Fabien Potencier <fabien@symfony.com>
  * @author Bernhard Schussek <bschussek@gmail.com>
@@ -32,25 +33,29 @@ class Expression extends Constraint
         self::EXPRESSION_FAILED_ERROR => 'EXPRESSION_FAILED_ERROR',
     ];
 
+    public string $message = 'This value is not valid.';
+    public string|ExpressionObject|null $expression = null;
+    public array $values = [];
+    public bool $negate = true;
+
     /**
-     * @deprecated since Symfony 6.1, use const ERROR_NAMES instead
+     * @param string|ExpressionObject|array<string,mixed>|null $expression The expression to evaluate
+     * @param array<string,mixed>|null                         $values     The values of the custom variables used in the expression (defaults to an empty array)
+     * @param string[]|null                                    $groups
+     * @param array<string,mixed>                              $options
+     * @param bool|null                                        $negate     Whether to fail if the expression evaluates to true (defaults to false)
      */
-    protected static $errorNames = self::ERROR_NAMES;
-
-    public $message = 'This value is not valid.';
-    public $expression;
-    public $values = [];
-
     public function __construct(
         string|ExpressionObject|array|null $expression,
-        string $message = null,
-        array $values = null,
-        array $groups = null,
+        ?string $message = null,
+        ?array $values = null,
+        ?array $groups = null,
         mixed $payload = null,
-        array $options = []
+        array $options = [],
+        ?bool $negate = null,
     ) {
         if (!class_exists(ExpressionLanguage::class)) {
-            throw new LogicException(sprintf('The "symfony/expression-language" component is required to use the "%s" constraint.', __CLASS__));
+            throw new LogicException(\sprintf('The "symfony/expression-language" component is required to use the "%s" constraint. Try running "composer require symfony/expression-language".', __CLASS__));
         }
 
         if (\is_array($expression)) {
@@ -63,35 +68,24 @@ class Expression extends Constraint
 
         $this->message = $message ?? $this->message;
         $this->values = $values ?? $this->values;
+        $this->negate = $negate ?? $this->negate;
     }
 
-    /**
-     * {@inheritdoc}
-     */
     public function getDefaultOption(): ?string
     {
         return 'expression';
     }
 
-    /**
-     * {@inheritdoc}
-     */
     public function getRequiredOptions(): array
     {
         return ['expression'];
     }
 
-    /**
-     * {@inheritdoc}
-     */
     public function getTargets(): string|array
     {
         return [self::CLASS_CONSTRAINT, self::PROPERTY_CONSTRAINT];
     }
 
-    /**
-     * {@inheritdoc}
-     */
     public function validatedBy(): string
     {
         return 'validator.expression';

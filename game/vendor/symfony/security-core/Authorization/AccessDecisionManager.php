@@ -32,7 +32,6 @@ final class AccessDecisionManager implements AccessDecisionManagerInterface
         VoterInterface::ACCESS_ABSTAIN => true,
     ];
 
-    private iterable $voters;
     private array $votersCacheAttributes = [];
     private array $votersCacheObject = [];
     private AccessDecisionStrategyInterface $strategy;
@@ -40,22 +39,21 @@ final class AccessDecisionManager implements AccessDecisionManagerInterface
     /**
      * @param iterable<mixed, VoterInterface> $voters An array or an iterator of VoterInterface instances
      */
-    public function __construct(iterable $voters = [], AccessDecisionStrategyInterface $strategy = null)
-    {
-        $this->voters = $voters;
+    public function __construct(
+        private iterable $voters = [],
+        ?AccessDecisionStrategyInterface $strategy = null,
+    ) {
         $this->strategy = $strategy ?? new AffirmativeStrategy();
     }
 
     /**
      * @param bool $allowMultipleAttributes Whether to allow passing multiple values to the $attributes array
-     *
-     * {@inheritdoc}
      */
     public function decide(TokenInterface $token, array $attributes, mixed $object = null, bool $allowMultipleAttributes = false): bool
     {
         // Special case for AccessListener, do not remove the right side of the condition before 6.0
         if (\count($attributes) > 1 && !$allowMultipleAttributes) {
-            throw new InvalidArgumentException(sprintf('Passing more than one Security attribute to "%s()" is not supported.', __METHOD__));
+            throw new InvalidArgumentException(\sprintf('Passing more than one Security attribute to "%s()" is not supported.', __METHOD__));
         }
 
         return $this->strategy->decide(
@@ -71,7 +69,7 @@ final class AccessDecisionManager implements AccessDecisionManagerInterface
         foreach ($this->getVoters($attributes, $object) as $voter) {
             $result = $voter->vote($token, $object, $attributes);
             if (!\is_int($result) || !(self::VALID_VOTES[$result] ?? false)) {
-                throw new \LogicException(sprintf('"%s::vote()" must return one of "%s" constants ("ACCESS_GRANTED", "ACCESS_DENIED" or "ACCESS_ABSTAIN"), "%s" returned.', get_debug_type($voter), VoterInterface::class, var_export($result, true)));
+                throw new \LogicException(\sprintf('"%s::vote()" must return one of "%s" constants ("ACCESS_GRANTED", "ACCESS_DENIED" or "ACCESS_ABSTAIN"), "%s" returned.', get_debug_type($voter), VoterInterface::class, var_export($result, true)));
             }
 
             yield $result;
@@ -88,7 +86,7 @@ final class AccessDecisionManager implements AccessDecisionManagerInterface
             $keyAttributes[] = \is_string($attribute) ? $attribute : null;
         }
         // use `get_class` to handle anonymous classes
-        $keyObject = \is_object($object) ? \get_class($object) : get_debug_type($object);
+        $keyObject = \is_object($object) ? $object::class : get_debug_type($object);
         foreach ($this->voters as $key => $voter) {
             if (!$voter instanceof CacheableVoterInterface) {
                 yield $voter;

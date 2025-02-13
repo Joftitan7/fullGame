@@ -18,7 +18,7 @@ use Symfony\Component\OptionsResolver\OptionsResolver;
 
 class TextType extends AbstractType implements DataTransformerInterface
 {
-    public function buildForm(FormBuilderInterface $builder, array $options)
+    public function buildForm(FormBuilderInterface $builder, array $options): void
     {
         // When empty_data is explicitly set to an empty string,
         // a string should always be returned when NULL is submitted
@@ -30,36 +30,24 @@ class TextType extends AbstractType implements DataTransformerInterface
         }
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function configureOptions(OptionsResolver $resolver)
+    public function configureOptions(OptionsResolver $resolver): void
     {
         $resolver->setDefaults([
             'compound' => false,
         ]);
     }
 
-    /**
-     * {@inheritdoc}
-     */
     public function getBlockPrefix(): string
     {
         return 'text';
     }
 
-    /**
-     * {@inheritdoc}
-     */
     public function transform(mixed $data): mixed
     {
         // Model data should not be transformed
         return $data;
     }
 
-    /**
-     * {@inheritdoc}
-     */
     public function reverseTransform(mixed $data): mixed
     {
         return $data ?? '';

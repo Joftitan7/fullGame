@@ -19,7 +19,6 @@ use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
 use Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken;
 use Symfony\Component\Security\Core\Exception\AuthenticationException;
 use Symfony\Component\Security\Core\Exception\BadCredentialsException;
-use Symfony\Component\Security\Core\Security;
 use Symfony\Component\Security\Core\User\PasswordUpgraderInterface;
 use Symfony\Component\Security\Core\User\UserProviderInterface;
 use Symfony\Component\Security\Http\Authentication\AuthenticationFailureHandlerInterface;
@@ -32,6 +31,7 @@ use Symfony\Component\Security\Http\Authenticator\Passport\Credentials\PasswordC
 use Symfony\Component\Security\Http\Authenticator\Passport\Passport;
 use Symfony\Component\Security\Http\HttpUtils;
 use Symfony\Component\Security\Http\ParameterBagUtils;
+use Symfony\Component\Security\Http\SecurityRequestAttributes;
 
 /**
  * @author Wouter de Jong <wouter@wouterj.nl>
@@ -41,19 +41,16 @@ use Symfony\Component\Security\Http\ParameterBagUtils;
  */
 class FormLoginAuthenticator extends AbstractLoginFormAuthenticator
 {
-    private HttpUtils $httpUtils;
-    private UserProviderInterface $userProvider;
-    private AuthenticationSuccessHandlerInterface $successHandler;
-    private AuthenticationFailureHandlerInterface $failureHandler;
     private array $options;
     private HttpKernelInterface $httpKernel;
 
-    public function __construct(HttpUtils $httpUtils, UserProviderInterface $userProvider, AuthenticationSuccessHandlerInterface $successHandler, AuthenticationFailureHandlerInterface $failureHandler, array $options)
-    {
-        $this->httpUtils = $httpUtils;
-        $this->userProvider = $userProvider;
-        $this->successHandler = $successHandler;
-        $this->failureHandler = $failureHandler;
+    public function __construct(
+        private HttpUtils $httpUtils,
+        private UserProviderInterface $userProvider,
+        private AuthenticationSuccessHandlerInterface $successHandler,
+        private AuthenticationFailureHandlerInterface $failureHandler,
+        array $options,
+    ) {
         $this->options = array_merge([
             'username_parameter' => '_username',
             'password_parameter' => '_password',
@@ -75,18 +72,16 @@ class FormLoginAuthenticator extends AbstractLoginFormAuthenticator
     {
         return ($this->options['post_only'] ? $request->isMethod('POST') : true)
             && $this->httpUtils->checkRequestPath($request, $this->options['check_path'])
-            && ($this->options['form_only'] ? 'form' === $request->getContentType() : true);
+            && ($this->options['form_only'] ? 'form' === $request->getContentTypeFormat() : true);
     }
 
     public function authenticate(Request $request): Passport
     {
         $credentials = $this->getCredentials($request);
 
-        $passport = new Passport(
-            new UserBadge($credentials['username'], $this->userProvider->loadUserByIdentifier(...)),
-            new PasswordCredentials($credentials['password']),
-            [new RememberMeBadge()]
-        );
+        $userBadge = new UserBadge($credentials['username'], $this->userProvider->loadUserByIdentifier(...));
+        $passport = new Passport($userBadge, new PasswordCredentials($credentials['password']), [new RememberMeBadge()]);
+
         if ($this->options['enable_csrf']) {
             $passport->addBadge(new CsrfTokenBadge($this->options['csrf_token_id'], $credentials['csrf_token']));
         }
@@ -127,16 +122,28 @@ class FormLoginAuthenticator extends AbstractLoginFormAuthenticator
         }
 
         if (!\is_string($credentials['username']) && !$credentials['username'] instanceof \Stringable) {
-            throw new BadRequestHttpException(sprintf('The key "%s" must be a string, "%s" given.', $this->options['username_parameter'], \gettype($credentials['username'])));
+            throw new BadRequestHttpException(\sprintf('The key "%s" must be a string, "%s" given.', $this->options['username_parameter'], \gettype($credentials['username'])));
         }
 
         $credentials['username'] = trim($credentials['username']);
 
-        if (\strlen($credentials['username']) > Security::MAX_USERNAME_LENGTH) {
-            throw new BadCredentialsException('Invalid username.');
+        if ('' === $credentials['username']) {
+            throw new BadCredentialsException(\sprintf('The key "%s" must be a non-empty string.', $this->options['username_parameter']));
         }
 
-        $request->getSession()->set(Security::LAST_USERNAME, $credentials['username']);
+        $request->getSession()->set(SecurityRequestAttributes::LAST_USERNAME, $credentials['username']);
+
+        if (!\is_string($credentials['password']) && !$credentials['password'] instanceof \Stringable) {
+            throw new BadRequestHttpException(\sprintf('The key "%s" must be a string, "%s" given.', $this->options['password_parameter'], \gettype($credentials['password'])));
+        }
+
+        if ('' === (string) $credentials['password']) {
+            throw new BadCredentialsException(\sprintf('The key "%s" must be a non-empty string.', $this->options['password_parameter']));
+        }
+
+        if (!\is_string($credentials['csrf_token'] ?? '') && !$credentials['csrf_token'] instanceof \Stringable) {
+            throw new BadRequestHttpException(\sprintf('The key "%s" must be a string, "%s" given.', $this->options['csrf_parameter'], \gettype($credentials['csrf_token'])));
+        }
 
         return $credentials;
     }
@@ -146,7 +153,7 @@ class FormLoginAuthenticator extends AbstractLoginFormAuthenticator
         $this->httpKernel = $httpKernel;
     }
 
-    public function start(Request $request, AuthenticationException $authException = null): Response
+    public function start(Request $request, ?AuthenticationException $authException = null): Response
     {
         if (!$this->options['use_forward']) {
             return parent::start($request, $authException);
