@@ -27,6 +27,7 @@ security:
                 default_target_path: app_home_page  # Redirect after login
             logout:
                 path: app_logout
+                target: app_login
 
     # Define access control rules
     access_control:

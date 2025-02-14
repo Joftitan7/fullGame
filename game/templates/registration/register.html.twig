@@ -3,21 +3,159 @@
 {% block title %}Register{% endblock %}
 
 {% block body %}
-    <h1>Register</h1>
 
-    {{ form_errors(registrationForm) }}
+<style>
+    /* Global styles */
+    body {
+        background: linear-gradient(135deg, #a8e063, #56ab2f); /* Lime gradient */
+        font-family: 'Poppins', sans-serif;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        margin: 0;
+    }
+    
+    /* Centering the form */
+    form {
+        background: #fff;
+        padding: 2rem;
+        border-radius: 12px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+        width: 100%;
+        max-width: 600px;
+        text-align: center;
+        animation: fadeIn 0.6s ease-in-out;
+    }
+    
+    /* Fade-in animation */
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    /* Form fields */
+    form input {
+        width: 100%;
+        padding: 10px;
+        margin: 10px 0;
+        border: 1px solid #ccc;
+        border-radius: 6px;
+        font-size: 16px;
+        transition: 0.3s ease-in-out;
+    }
+    
+    /* Input focus effect */
+    form input:focus {
+        border-color: #56ab2f; /* Lime border */
+        outline: none;
+        box-shadow: 0 0 8px rgba(86, 171, 47, 0.3);
+    }
+    
+    /* Register button */
+    form button {
+        background: linear-gradient(135deg, #a8e063, #56ab2f);
+        color: white;
+        font-size: 18px;
+        font-weight: bold;
+        padding: 12px;
+        border: none;
+        border-radius: 6px;
+        width: 100%;
+        cursor: pointer;
+        transition: 0.3s ease-in-out;
+    }
+    
+    /* Button hover effect */
+    form button:hover {
+        background: linear-gradient(135deg, #56ab2f, #a8e063);
+    }
+    
+    /* Alert messages */
+    .alert {
+        background: #ff4d4d;
+        color: white;
+        padding: 10px;
+        border-radius: 6px;
+        margin-bottom: 15px;
+        font-weight: bold;
+        animation: shake 0.3s ease-in-out;
+    }
+    
+    /* Shake animation for errors */
+    @keyframes shake {
+        0%, 100% { transform: translateX(0); }
+        25% { transform: translateX(-5px); }
+        50% { transform: translateX(5px); }
+        75% { transform: translateX(-5px); }
+    }
+    
+    /* Links */
+    a {
+        color: #56ab2f; /* Lime link */
+        text-decoration: none;
+        font-weight: bold;
+        transition: 0.3s ease-in-out;
+    }
+    
+    a:hover {
+        text-decoration: underline;
+        color: #a8e063;
+    }
 
-    {{ form_start(registrationForm) }}
-        {{ form_row(registrationForm.username) }}        {# Add the username field #}
-        {{ form_row(registrationForm.name) }}            {# Add the name field #}
-        {{ form_row(registrationForm.familyName) }}      {# Add the family name field #}
-        {{ form_row(registrationForm.email) }}
-        {{ form_row(registrationForm.phone) }}
-        {{ form_row(registrationForm.plainPassword, {
-            label: 'Password'
-        }) }}
-        {{ form_row(registrationForm.agreeTerms) }}
+    /* Form layout */
+    .form-row-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 20px; /* Spacing between the columns */
+        justify-content: space-between;
+    }
 
-        <button type="submit" class="btn">Register</button>
-    {{ form_end(registrationForm) }}
+    .form-row-container .form-row {
+        width: 48%; /* Ensuring two columns */
+    }
+
+    /* Adjust the button and the last row */
+    .form-row-container .form-row:last-child {
+        width: 100%; /* Full-width for the last button or term field */
+    }
+</style>
+
+{{ form_errors(registrationForm) }}
+
+{{ form_start(registrationForm) }}
+    <div class="form-row-container">
+        <div class="form-row">
+            {{ form_row(registrationForm.username) }}        {# Username field #}
+        </div>
+        <div class="form-row">
+            {{ form_row(registrationForm.name) }}            {# Name field #}
+        </div>
+        <div class="form-row">
+            {{ form_row(registrationForm.familyName) }}      {# Family Name field #}
+        </div>
+        <div class="form-row">
+            {{ form_row(registrationForm.email) }}           {# Email field #}
+        </div>
+        <div class="form-row">
+            {{ form_row(registrationForm.phone) }}           {# Phone field #}
+        </div>
+        <div class="form-row">
+            {{ form_row(registrationForm.plainPassword, { label: 'Password' }) }}  {# Password field #}
+        </div>
+    </div>
+
+    {{ form_row(registrationForm.agreeTerms) }}           {# Terms Agreement #}
+    
+    <p>Already have an account? go <a href="{{ path('app_login') }}" class="btn btn-danger">Login</a> already</p>
+
+    <button type="submit" class="btn">Register</button>
+{{ form_end(registrationForm) }}
+
 {% endblock %}
