@@ -1,0 +1,14 @@
+{% extends 'base.html.twig' %}
+
+{% block body %}
+    <h1>Edit Game</h1>
+    {% for message in app.flashes('error') %}
+    <div class="alert alert-danger">{{ message }}</div>
+{% endfor %}
+
+{{ form_start(form) }}
+    {{ form_widget(form) }}
+    <button type="submit">Save Changes</button>
+{{ form_end(form) }}
+
+{% endblock %}

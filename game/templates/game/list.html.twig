@@ -1,0 +1,27 @@
+{% extends 'base.html.twig' %}
+
+{% block styles %}
+    <style>
+        /* (Insert your CSS here) */
+    </style>
+{% endblock %}
+
+{% block body %}
+    <h1>Your Games</h1>
+    <a href="{{ path('game_create') }}" class="create-new-game">Create a new game</a>
+
+    <div class="game-container">
+        {% for game in games %}
+            <div class="game-card">
+                <img src="{{ asset('uploads/thumbnails/' ~ game.thumbnail) }}" alt="Game Thumbnail" class="game-thumbnail">
+                <div class="game-name">{{ game.name }}</div>
+                <div class="game-date">{{ game.createdAt|date('F j, Y H:i') }}</div>
+                
+                <div class="game-actions">
+                    <a href="{{ path('game_edit', {'id': game.id}) }}">Edit</a>
+                    <a href="{{ path('game_delete', {'id': game.id}) }}" class="delete-btn" onclick="return confirm('Are you sure?');">Delete</a>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+{% endblock %}

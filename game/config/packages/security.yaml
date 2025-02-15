@@ -8,7 +8,7 @@ security:
         app_user_provider:
             entity:
                 class: App\Entity\User
-                property: username  # Use 'username' instead of 'email'
+                property: email  # Use 'username' instead of 'email'
 
     firewalls:
         dev:
@@ -22,7 +22,7 @@ security:
                 login_path: app_login
                 check_path: app_login
                 enable_csrf: true
-                username_parameter: _username  # Ensure it matches your form field name
+                username_parameter: _email  # Ensure it matches your form field name
                 password_parameter: _password
                 default_target_path: app_home_page  # Redirect after login
             logout:

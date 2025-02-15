@@ -2,94 +2,57 @@
 
 namespace App\Form;
 
-use App\Entity\User;
 use Symfony\Component\Form\AbstractType;
-use Symfony\Component\Form\FormBuilderInterface;
-use Symfony\Component\Validator\Constraints\Regex;
-use Symfony\Component\Validator\Constraints\IsTrue;
-use Symfony\Component\Validator\Constraints\Length;
-use Symfony\Component\Validator\Constraints\NotBlank;
-use Symfony\Component\OptionsResolver\OptionsResolver;
-use Symfony\Component\Form\Extension\Core\Type\TelType;
-use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
+use Symfony\Component\Form\Extension\Core\Type\EmailType;
 use Symfony\Component\Form\Extension\Core\Type\PasswordType;
-use Symfony\Component\Form\Extension\Core\Type\TextType; // Import TextType for username, name, and familyName fields
+use Symfony\Component\Form\Extension\Core\Type\RepeatedType;
+use Symfony\Component\Form\Extension\Core\Type\TextType;
+use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
+use Symfony\Component\Form\FormBuilderInterface;
+use Symfony\Component\OptionsResolver\OptionsResolver;
+use Symfony\Component\Validator\Constraints as Assert;
+use App\Entity\User;
 
 class RegistrationFormType extends AbstractType
 {
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
         $builder
-            ->add('email')  // This is already in your form
             ->add('username', TextType::class, [
-                'label' => 'Username',
                 'constraints' => [
-                    new NotBlank(['message' => 'Username is required']),
-                    new Length([
-                        'min' => 3,
-                        'minMessage' => 'Your username should be at least {{ limit }} characters',
-                        'max' => 50,
-                    ]),
-                ],
+                    new Assert\NotBlank(),
+                    new Assert\Length(['min' => 4, 'max' => 20])
+                ]
+            ])
+            ->add('email', EmailType::class, [
+                'constraints' => [
+                    new Assert\NotBlank(),
+                    new Assert\Email()
+                ]
             ])
             ->add('name', TextType::class, [
-                'label' => 'Name',
-                'constraints' => [
-                    new NotBlank(['message' => 'Name is required']),
-                    new Length([
-                        'min' => 3,
-                        'minMessage' => 'Your name should be at least {{ limit }} characters',
-                        'max' => 50,
-                    ]),
-                ],
+                'constraints' => [new Assert\NotBlank()]
             ])
             ->add('familyName', TextType::class, [
-                'label' => 'Family Name',
-                'constraints' => [
-                    new NotBlank(['message' => 'Family Name is required']),
-                    new Length([
-                        'min' => 3,
-                        'minMessage' => 'Your family name should be at least {{ limit }} characters',
-                        'max' => 50,
-                    ]),
-                ],
+                'constraints' => [new Assert\NotBlank()]
             ])
-            ->add('phone', TelType::class, [
-                'label' => 'Phone Number',
+            ->add('phone', TextType::class, [
+                'constraints' => [new Assert\NotBlank()]
+            ])
+            ->add('plainPassword', RepeatedType::class, [
+                'type' => PasswordType::class,
+                'first_options' => ['label' => 'Password'],
+                'second_options' => ['label' => 'Confirm Password'],
+                'invalid_message' => 'Passwords must match.',
                 'constraints' => [
-                    new NotBlank(['message' => 'Phone number is required']),
-                    new Regex([
-                        'pattern' => '/^\+?\d{10,15}$/',
-                        'message' => 'Enter a valid phone number',
-                    ]),
-                ],
+                    new Assert\NotBlank(),
+                    new Assert\Length(['min' => 6])
+                ]
             ])
             ->add('agreeTerms', CheckboxType::class, [
                 'mapped' => false,
-                'constraints' => [
-                    new IsTrue([
-                        'message' => 'You should agree to our terms.',
-                    ]),
-                ],
-            ])
-            ->add('plainPassword', PasswordType::class, [
-                // instead of being set onto the object directly,
-                // this is read and encoded in the controller
-                'mapped' => false,
-                'attr' => ['autocomplete' => 'new-password'],
-                'constraints' => [
-                    new NotBlank([
-                        'message' => 'Please enter a password',
-                    ]),
-                    new Length([
-                        'min' => 6,
-                        'minMessage' => 'Your password should be at least {{ limit }} characters',
-                        // max length allowed by Symfony for security reasons
-                        'max' => 4096,
-                    ]),
-                ],
-            ])
-        ;
+                'constraints' => [new Assert\IsTrue()]
+            ]);
     }
 
     public function configureOptions(OptionsResolver $resolver): void

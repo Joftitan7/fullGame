@@ -9,7 +9,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
-use Symfony\Component\Routing\Annotation\Route;  // Use the correct import
+use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
 class RegistrationController extends AbstractController
@@ -18,37 +18,26 @@ class RegistrationController extends AbstractController
     public function register(Request $request, UserPasswordHasherInterface $userPasswordHasher, EntityManagerInterface $entityManager): Response
     {
         $user = new User();
-        
-        // Create the registration form with the User object
         $form = $this->createForm(RegistrationFormType::class, $user);
-
-        // Handle the form request (bind data to the $user object)
         $form->handleRequest($request);
 
         if ($form->isSubmitted() && $form->isValid()) {
-            // Get the plain password data
+            /** @var string $plainPassword */
             $plainPassword = $form->get('plainPassword')->getData();
 
-            // Hash the password using the password hasher
+            // encode the plain password
             $user->setPassword($userPasswordHasher->hashPassword($user, $plainPassword));
 
-            // Optionally: Set any default values or perform additional logic for new user
-            // Example: Setting default roles (if not set in form)
-            if (empty($user->getRoles())) {
-                $user->setRoles(['ROLE_USER']);
-            }
-
-            // Persist the user entity in the database
             $entityManager->persist($user);
             $entityManager->flush();
 
-            // Redirect to the homepage after successful registration
+            // do anything else you need here, like send an email
+
             return $this->redirectToRoute('app_home_page');
         }
 
-        // Render the registration form
         return $this->render('registration/register.html.twig', [
-            'registrationForm' => $form->createView(),
+            'registrationForm' => $form,
         ]);
     }
 }
