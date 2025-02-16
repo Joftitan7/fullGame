@@ -1,0 +1,24 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Search Users{% endblock %}
+
+{% block body %}
+<h1>Search Users</h1>
+
+<form method="get" action="{{ path('user_search') }}">
+    <input type="text" name="q" value="{{ query }}" placeholder="Search by username">
+    <button type="submit">Search</button>
+</form>
+
+<h2>Results</h2>
+<ul>
+    {% for user in users %}
+        <li>{{ user.username }} 
+            <a href="{{ path('send_friend_request', {'id': user.id}) }}">Send Friend Request</a>
+        </li>
+    {% else %}
+        <li>No users found</li>
+    {% endfor %}
+</ul>
+
+{% endblock %}

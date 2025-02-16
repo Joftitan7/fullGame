@@ -8,23 +8,14 @@
 <h2>Received Friend Requests</h2>
 <ul>
     {% for request in receivedRequests %}
-    <li>
-        {% if request.fromUser %}
-            {{ request.fromUser.username }}
+        <li>
+            {{ request.fromUser.username }} 
             <a href="{{ path('accept_friend_request', {'id': request.id}) }}">Accept</a> | 
             <a href="{{ path('decline_friend_request', {'id': request.id}) }}">Decline</a>
-        {% else %}
-            <em>Unknown User</em>
-        {% endif %}
-    </li>
-{% else %}
-    <li>No friend requests</li>
-{% endfor %}
-
+        </li>
+    {% else %}
+        <li>No friend requests</li>
+    {% endfor %}
 </ul>
-
-<a href="{{ path('user_profile_edit') }}">Edit Profile</a> |
-<a href="{{ path('user_change_password') }}">Change Password</a>
-
 
 {% endblock %}

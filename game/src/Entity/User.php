@@ -14,7 +14,7 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ORM\Entity(repositoryClass: UserRepository::class)]
 #[ORM\Table(name: '`user`')]
 #[UniqueEntity(fields: ['email'], message: 'There is already an account with this email')]
-#[UniqueEntity(fields: ['username'], message: 'This username is already taken')]  // Ensure unique usernames
+#[UniqueEntity(fields: ['username'], message: 'This username is already taken')]
 class User implements UserInterface, PasswordAuthenticatedUserInterface
 {
     #[ORM\Id]
@@ -55,32 +55,24 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[Assert\Length(min: 6, max: 255)]
     private ?string $plainPassword = null;
 
-    /**
-     * @var Collection<int, Game>
-     */
+    #[ORM\Column(type: 'string', length: 255, nullable: true)]
+    private ?string $profilePhoto = null;
+
+    #[ORM\OneToMany(mappedBy: 'fromUser', targetEntity: FriendRequest::class, cascade: ['remove'])]
+    private Collection $sentFriendRequests;
+
+    #[ORM\OneToMany(mappedBy: 'toUser', targetEntity: FriendRequest::class, cascade: ['remove'])]
+    private Collection $receivedFriendRequests;
+
     #[ORM\OneToMany(targetEntity: Game::class, mappedBy: 'user', orphanRemoval: true)]
     private Collection $games;
-
-    #[ORM\Column(type: 'string', length: 255, nullable: true)]
-private ?string $profilePhoto = null;
-
-public function getProfilePhoto(): ?string
-{
-    return $this->profilePhoto;
-}
-
-public function setProfilePhoto(?string $profilePhoto): self
-{
-    $this->profilePhoto = $profilePhoto;
-    return $this;
-}
 
     public function __construct()
     {
         $this->games = new ArrayCollection();
+        $this->sentFriendRequests = new ArrayCollection();
+        $this->receivedFriendRequests = new ArrayCollection();
     }
-
-    // Getter and setter methods
 
     public function getId(): ?int
     {
@@ -95,7 +87,6 @@ public function setProfilePhoto(?string $profilePhoto): self
     public function setName(string $name): self
     {
         $this->name = $name;
-
         return $this;
     }
 
@@ -107,7 +98,6 @@ public function setProfilePhoto(?string $profilePhoto): self
     public function setUsername(string $username): self
     {
         $this->username = $username;
-
         return $this;
     }
 
@@ -119,7 +109,6 @@ public function setProfilePhoto(?string $profilePhoto): self
     public function setFamilyName(string $familyName): self
     {
         $this->familyName = $familyName;
-
         return $this;
     }
 
@@ -131,7 +120,6 @@ public function setProfilePhoto(?string $profilePhoto): self
     public function setEmail(string $email): static
     {
         $this->email = $email;
-
         return $this;
     }
 
@@ -139,14 +127,12 @@ public function setProfilePhoto(?string $profilePhoto): self
     {
         $roles = $this->roles;
         $roles[] = 'ROLE_USER';
-
         return array_unique($roles);
     }
 
     public function setRoles(array $roles): static
     {
         $this->roles = $roles;
-
         return $this;
     }
 
@@ -158,7 +144,6 @@ public function setProfilePhoto(?string $profilePhoto): self
     public function setPassword(string $password): static
     {
         $this->password = $password;
-
         return $this;
     }
 
@@ -175,7 +160,6 @@ public function setProfilePhoto(?string $profilePhoto): self
 
     public function eraseCredentials(): void
     {
-        // If you store any temporary, sensitive data on the user, clear it here
     }
 
     public function isIsAdmin(): ?bool
@@ -186,7 +170,6 @@ public function setProfilePhoto(?string $profilePhoto): self
     public function setIsAdmin(bool $isAdmin): static
     {
         $this->isAdmin = $isAdmin;
-
         return $this;
     }
 
@@ -198,19 +181,35 @@ public function setProfilePhoto(?string $profilePhoto): self
     public function setPhone(string $phone): self
     {
         $this->phone = $phone;
-
         return $this;
     }
 
-    // Implement getUserIdentifier method to satisfy UserInterface
     public function getUserIdentifier(): string
-{
-    return (string) $this->email; // Change from email to username
-}
+    {
+        return (string) $this->email; // Change from email to username
+    }
 
-    /**
-     * @return Collection<int, Game>
-     */
+    public function getProfilePhoto(): ?string
+    {
+        return $this->profilePhoto;
+    }
+
+    public function setProfilePhoto(?string $profilePhoto): self
+    {
+        $this->profilePhoto = $profilePhoto;
+        return $this;
+    }
+
+    public function getSentFriendRequests(): Collection
+    {
+        return $this->sentFriendRequests;
+    }
+
+    public function getReceivedFriendRequests(): Collection
+    {
+        return $this->receivedFriendRequests;
+    }
+
     public function getGames(): Collection
     {
         return $this->games;
@@ -222,19 +221,16 @@ public function setProfilePhoto(?string $profilePhoto): self
             $this->games->add($game);
             $game->setUser($this);
         }
-
         return $this;
     }
 
     public function removeGame(Game $game): static
     {
         if ($this->games->removeElement($game)) {
-            // set the owning side to null (unless already changed)
             if ($game->getUser() === $this) {
                 $game->setUser(null);
             }
         }
-
         return $this;
     }
 }
