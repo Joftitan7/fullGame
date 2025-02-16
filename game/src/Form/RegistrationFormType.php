@@ -11,6 +11,8 @@ use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 use Symfony\Component\Validator\Constraints as Assert;
+use Symfony\Component\Form\Extension\Core\Type\FileType;
+use Symfony\Component\Validator\Constraints\File;
 use App\Entity\User;
 
 class RegistrationFormType extends AbstractType
@@ -18,6 +20,20 @@ class RegistrationFormType extends AbstractType
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
         $builder
+
+        ->add('profilePhoto', FileType::class, [
+            'label' => 'Profile Photo (Optional)',
+            'mapped' => false, // Do not map this field to the entity directly
+            'required' => false,
+            'constraints' => [
+                new File([
+                    'maxSize' => '2M',
+                    'mimeTypes' => ['image/jpeg', 'image/png', 'image/gif', 'image/webp'],
+                    'mimeTypesMessage' => 'Please upload a valid image (JPG, PNG, GIF, WEBP)',
+                ])
+            ],
+        ])
+
             ->add('username', TextType::class, [
                 'constraints' => [
                     new Assert\NotBlank(),

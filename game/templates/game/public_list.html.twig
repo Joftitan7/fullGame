@@ -1,0 +1,18 @@
+{# templates/game/public_list.html.twig #}
+
+{% extends 'base.html.twig' %}
+
+{% block body %}
+    <h1>Public Games</h1>
+    <div class="games">
+        {% for game in games %}
+            <div class="game">
+                <img src="{{ asset('uploads/thumbnails/' ~ game.thumbnail) }}" alt="{{ game.name }}">
+                <h3>{{ game.name }}</h3>
+                <a href="{{ path('game_show', {'id': game.id}) }}">View Game</a>
+            </div>
+        {% else %}
+            <p>No public games available.</p>
+        {% endfor %}
+    </div>
+{% endblock %}

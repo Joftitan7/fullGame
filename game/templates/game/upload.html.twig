@@ -1,0 +1,40 @@
+{% extends 'base.html.twig' %}
+
+{% block body %}
+    <h1>Upload Your Game</h1>
+
+    {{ form_start(form) }}
+
+        <div>
+            {{ form_label(form.name) }}
+            {{ form_widget(form.name) }}
+            {{ form_errors(form.name) }}
+        </div>
+
+        <div>
+            {{ form_label(form.gameFile) }}
+            {{ form_widget(form.gameFile) }}
+            {{ form_errors(form.gameFile) }}
+        </div>
+
+        <div>
+            {{ form_label(form.thumbnail) }}
+            {{ form_widget(form.thumbnail) }}
+            {{ form_errors(form.thumbnail) }}
+
+            
+
+        </div>
+
+        <label for="game_visibility">Visibility:</label>
+<select name="game[visibility]" id="game_visibility" required>
+    <option value="public">Public</option>
+    <option value="private">Private</option>
+</select>
+
+        <div>
+            {{ form_row(form.save) }}
+        </div>
+
+    {{ form_end(form) }}
+{% endblock %}

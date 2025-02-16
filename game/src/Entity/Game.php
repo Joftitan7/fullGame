@@ -2,9 +2,9 @@
 
 namespace App\Entity;
 
-use App\Repository\GameRepository;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
+use App\Repository\GameRepository;
 
 #[ORM\Entity(repositoryClass: GameRepository::class)]
 class Game
@@ -13,8 +13,6 @@ class Game
     #[ORM\GeneratedValue]
     #[ORM\Column]
     private ?int $id = null;
-
-
 
     #[ORM\Column(length: 255)]
     private ?string $name = null;
@@ -38,17 +36,20 @@ class Game
     #[ORM\Column(length: 255)]
     private string $apiKey;
 
+    /**
+     * The game file location (path as a string).
+     *
+     * @ORM\Column(length=255, nullable=true)
+     */
+    private ?string $gameFile = null;
+
+    
+
     public function __construct()
     {
         $this->apiKey = bin2hex(random_bytes(16)); // Generates a secure API key
         $this->createdAt = new \DateTimeImmutable();
     }
-
-    public function getApiKey(): string
-    {
-        return $this->apiKey;
-    }
-
 
     public function getId(): ?int
     {
@@ -132,6 +133,23 @@ class Game
         $this->user = $user;
 
         return $this;
+    }
+
+    public function getGameFile(): ?string
+    {
+        return $this->gameFile;
+    }
+
+    public function setGameFile(?string $gameFile): self
+    {
+        $this->gameFile = $gameFile;
+
+        return $this;
+    }
+
+    public function getApiKey(): string
+    {
+        return $this->apiKey;
     }
 
     public function setApiKey(string $apiKey): static

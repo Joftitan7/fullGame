@@ -74,6 +74,20 @@ class GameController extends AbstractController
         ]);
     }
 
+    // src/Controller/GameController.php
+
+#[Route('/games', name: 'game_public_list')]
+public function publicGames(GameRepository $gameRepository): Response
+{
+    // Fetch public games
+    $games = $gameRepository->findBy(['visibility' => 'public']);
+
+    return $this->render('game/public_list.html.twig', [
+        'games' => $games,
+    ]);
+}
+
+
     #[Route('/edit/{id}', name: 'game_edit')]
     public function edit(Game $game, Request $request, EntityManagerInterface $entityManager, SluggerInterface $slugger): Response
     {
@@ -134,3 +148,5 @@ class GameController extends AbstractController
         return $this->redirectToRoute('game_list');
     }
 }
+
+
