@@ -7,8 +7,23 @@
 
     {# Render the form #}
     {{ form_start(form) }}
-        {{ form_row(form.receiver) }}  <!-- Receiver field -->
-        {{ form_row(form.content) }}   <!-- Content field -->
-        {{ form_row(form.send) }}      <!-- Submit button -->
-    {{ form_end(form) }}
+    {{ form_row(form.receiver) }}
+    {{ form_row(form.content) }}
+    {{ form_row(form.send) }}
+{{ form_end(form) }}
+
+
+{{ dump(friends) }}
+
+
+{# Check if you have friends and loop through them to display their usernames #}
+{% if friends is not empty %}
+    <ul>
+        {% for friend in friends %}
+            <li>{{ friend.username }}</li>
+        {% endfor %}
+    </ul>
+{% else %}
+    <p>You have no friends yet.</p>
+{% endif %}
 {% endblock %}

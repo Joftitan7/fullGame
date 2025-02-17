@@ -6,16 +6,112 @@ use App\Entity\Game;
 use App\Form\GameFormType;
 use App\Repository\GameRepository;
 use Doctrine\ORM\EntityManagerInterface;
-use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Component\HttpFoundation\File\Exception\FileException;
+use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\String\Slugger\SluggerInterface;
+use Symfony\Component\Security\Core\User\UserInterface;
+use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\File\Exception\FileException;
 
 #[Route('/game')]
 class GameController extends AbstractController
 {
+    private $security;
+
+    public function __construct(Security $security, EntityManagerInterface $entityManager)
+    {
+        $this->security = $security;
+        $this->entityManager = $entityManager;
+    }
+
+    // /**
+    //  * @Route("/game/save-steps", name="save_game_steps", methods={"POST"})
+    //  */
+    // public function saveSteps(Request $request): JsonResponse
+    // {
+    //     // Get the current user
+    //     $user = $this->security->getUser();
+
+    //     // Get the data from the request
+    //     $data = json_decode($request->getContent(), true);
+
+    //     // Ensure that the difficulty and steps are provided
+    //     if (!isset($data['difficulty']) || !isset($data['steps'])) {
+    //         return new JsonResponse(['success' => false, 'message' => 'Invalid data.'], 400);
+    //     }
+
+    //     $difficulty = $data['difficulty'];
+    //     $steps = (int) $data['steps'];
+
+    //     // Update the minimum steps for the respective difficulty
+    //     switch ($difficulty) {
+    //         case 'normal':
+    //             if ($user->getStepsForNormal() === null || $steps < $user->getStepsForNormal()) {
+    //                 $user->setStepsForNormal($steps);
+    //             }
+    //             break;
+    //         case 'hard':
+    //             if ($user->getStepsForHard() === null || $steps < $user->getStepsForHard()) {
+    //                 $user->setStepsForHard($steps);
+    //             }
+    //             break;
+    //         case 'extreme':
+    //             if ($user->getStepsForExtreme() === null || $steps < $user->getStepsForExtreme()) {
+    //                 $user->setStepsForExtreme($steps);
+    //             }
+    //             break;
+    //         default:
+    //             return new JsonResponse(['success' => false, 'message' => 'Invalid difficulty.'], 400);
+    //     }
+
+    //     // Save the updated user entity
+    //     $entityManager = $this->getDoctrine()->getManager();
+    //     $entityManager->flush();
+
+    //     return new JsonResponse(['success' => true]);
+    // }
+
+    #[Route('/complete', methods: ['POST'])]
+    public function completeGame(Request $request, EntityManagerInterface $em, UserInterface $user): JsonResponse
+    {
+        $data = json_decode($request->getContent(), true);
+        $stepsTaken = $data['stepsTaken'] ?? null;
+        $difficulty = $data['difficulty'] ?? null;
+
+        if (!$stepsTaken || !$difficulty) {
+            return new JsonResponse(['error' => 'Steps and difficulty are required'], 400);
+        }
+
+        // Update the user record with the steps based on difficulty
+        switch ($difficulty) {
+            case 'normal':
+                $user->setStepsNormal($stepsTaken);
+                break;
+            case 'hard':
+                $user->setStepsHard($stepsTaken);
+                break;
+            case 'extreme':
+                $user->setStepsExtreme($stepsTaken);
+                break;
+            default:
+                return new JsonResponse(['error' => 'Invalid difficulty'], 400);
+        }
+
+        $em->persist($user);
+        $em->flush();
+
+        return new JsonResponse(['message' => 'Game completed and steps saved'], 200);
+    }
+
+
+
+    
+
+
+
     #[Route('/new', name: 'game_create')]
     public function create(Request $request, EntityManagerInterface $entityManager, SluggerInterface $slugger): Response
     {

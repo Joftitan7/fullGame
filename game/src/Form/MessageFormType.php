@@ -28,12 +28,11 @@ class MessageFormType extends AbstractType
         // Create a dropdown for friends
         $builder->add('receiver', ChoiceType::class, [
             'choices' => $friends,
-            'choice_label' => function (User $user) {
-                return $user->getUsername();
+            'choice_label' => function (User $friend) {
+                return $friend->getUsername();  // Displaying friend’s username
             },
             'label' => 'Choose a Friend',
         ]);
-
         // Add content field
         $builder->add('content', TextareaType::class, [
             'label' => 'Message Content',

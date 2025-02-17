@@ -51,7 +51,85 @@ function initGame() {
     maze = generateMaze(mazeSize);
     pathToExit = findPathToExit(maze);
     drawMaze();
+
+    function onWin() {
+        alert("You Win!");
+    
+        // Send steps to server
+        sendGameResult(steps, level);
+    }
+    
+    function sendGameResult(stepsTaken, difficulty) {
+        const data = {
+            stepsTaken: stepsTaken,
+            difficulty: difficulty
+        };
+    
+        fetch('/game/complete', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => response.json())
+        .then(result => {
+            console.log('Game result sent successfully:', result);
+        })
+        .catch(error => {
+            console.error('Error:', error);
+        });
+    }
+    
+
 }
+
+function fetchLeaderboard(difficulty) {
+    const url = `/api/leaderboard/${difficulty}`;
+    fetch(url)
+        .then(response => response.json())
+        .then(leaderboard => {
+            let leaderboardHTML = '<h2>Leaderboard</h2><ul>';
+            leaderboard.forEach(entry => {
+                leaderboardHTML += `<li>${entry.username} - ${entry[`steps_for_${difficulty}`]} steps</li>`; // Use correct field name
+            });
+            leaderboardHTML += '</ul>';
+            document.getElementById('leaderboard').innerHTML = leaderboardHTML;
+        })
+        .catch(error => console.error('Error fetching leaderboard:', error));
+}
+
+
+
+
+const userToken = localStorage.getItem('userToken') || sessionStorage.getItem('userToken');
+
+function unlockAchievement(title) {
+    if (!userToken) {
+        console.error("User token is missing! Achievement not sent.");
+        return;
+    }
+
+    fetch('/api/achievements', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + userToken,
+        },
+        body: JSON.stringify({ title })
+    }).then(response => {
+        if (response.ok) {
+            console.log(`Achievement unlocked: ${title}`);
+        } else {
+            console.error("Failed to unlock achievement.");
+        }
+    }).catch(error => console.error("Error:", error));
+}
+
+
+
+
 
 function generateMaze(size) {
     const maze = Array.from({ length: size }, () => Array(size).fill(1));
@@ -118,11 +196,17 @@ function movePlayer(dx, dy) {
         player.x += dx;
         player.y += dy;
     }
+    console.log(`New position: (${player.x}, ${player.y})`);
     steps++;
+    checkAchievements(); // <-- Call this here
+
     document.getElementById('steps').textContent = steps; // Update step counter
     drawMaze();
-    if (player.x >= mazeSize - 3 && player.y >= mazeSize - 3) alert("You Win!");
+    if (player.x >= mazeSize - 3 && player.y >= mazeSize - 3) {
+        onWin();
+    }
 }
+
 
 document.addEventListener('keydown', event => {
     const moves = { 'ArrowUp': [0, -1], 'ArrowDown': [0, 1], 'ArrowLeft': [-1, 0], 'ArrowRight': [1, 0] };
