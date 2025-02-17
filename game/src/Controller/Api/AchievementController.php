@@ -19,6 +19,11 @@ class AchievementController extends AbstractController
     #[Route('', methods: ['POST'])]
     public function unlockAchievement(Request $request, EntityManagerInterface $em, UserInterface $user): JsonResponse
     {
+        // Ensure $user is an instance of App\Entity\User
+        if (!$user instanceof User) {
+            return new JsonResponse(['error' => 'Invalid user'], 400);
+        }
+
         $data = json_decode($request->getContent(), true);
         $title = $data['title'] ?? null;
 
@@ -40,7 +45,7 @@ class AchievementController extends AbstractController
         $achievement = new Achievement();
         $achievement->setTitle($title)
             ->setAchievedAt(new \DateTimeImmutable())
-            ->setUser($user);
+            ->setUser($user); // Now it's safe
 
         $em->persist($achievement);
         $em->flush();
@@ -48,4 +53,3 @@ class AchievementController extends AbstractController
         return new JsonResponse(['message' => 'Achievement unlocked successfully'], 200);
     }
 }
-

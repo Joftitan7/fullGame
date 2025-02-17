@@ -18,67 +18,57 @@ class GameUploadController extends AbstractController
     #[Route('/game/upload', name: 'game_upload')]
     #[IsGranted('ROLE_USER')] // Only logged-in users can upload games
     public function upload(Request $request, EntityManagerInterface $entityManager): Response
-{
-    $game = new Game();
-    $form = $this->createForm(GameUploadFormType::class, $game);
-    $form->handleRequest($request);
+    {
+        $game = new Game();
+        $form = $this->createForm(GameUploadFormType::class, $game);
+        $form->handleRequest($request);
 
-    if ($form->isSubmitted() && $form->isValid()) {
-        // Handle game file upload
-        /** @var UploadedFile $gameFile */
-        $gameFile = $form->get('gameFile')->getData();
-        if ($gameFile) {
-            $newFilename = uniqid().'.'.$gameFile->getClientOriginalExtension(); // Use getClientOriginalExtension instead of guessExtension
-            try {
-                $gameFile->move($this->getParameter('games_directory'), $newFilename);
-                $game->setGameFile($newFilename); // Save the file name to the entity
-            } catch (FileException $e) {
-                $this->addFlash('error', 'Failed to upload game.');
-            }
-        }
-
-        $locationUrl = $form->get('locationUrl')->getData();
-        if ($locationUrl) {
-            $game->setLocationUrl($locationUrl);  // Set the location URL to the entity
-        }
-
-        // Handle thumbnail upload
-        /** @var UploadedFile $thumbnail */
-        $thumbnail = $form->get('thumbnail')->getData();
-        if ($thumbnail) {
-            $newThumbFilename = uniqid().'.'.$thumbnail->getClientOriginalExtension(); // Same for thumbnail
-            try {
-                $thumbnail->move($this->getParameter('thumbnails_directory'), $newThumbFilename);
-                $game->setThumbnail($newThumbFilename); // Save the thumbnail file name to the entity
-            } catch (FileException $e) {
-                $this->addFlash('error', 'Failed to upload thumbnail.');
-            }
-        }
-        
         if ($form->isSubmitted() && $form->isValid()) {
-            $game = $form->getData();
-        
+            /** @var UploadedFile $gameFile */
+            $gameFile = $form->get('gameFile')->getData();
+            if ($gameFile instanceof UploadedFile) {
+                $newFilename = uniqid() . '.' . $gameFile->getClientOriginalExtension();
+                try {
+                    $gameFile->move($this->getParameter('games_directory'), $newFilename);
+                    $game->setGameFile($newFilename);
+                } catch (FileException $e) {
+                    $this->addFlash('error', 'Failed to upload game.');
+                }
+            }
+
+            $locationUrl = $form->get('locationUrl')->getData();
+            if ($locationUrl !== null) {
+                $game->setLocationUrl($locationUrl);
+            }
+
+            /** @var UploadedFile $thumbnail */
+            $thumbnail = $form->get('thumbnail')->getData();
+            if ($thumbnail instanceof UploadedFile) {
+                $newThumbFilename = uniqid() . '.' . $thumbnail->getClientOriginalExtension();
+                try {
+                    $thumbnail->move($this->getParameter('thumbnails_directory'), $newThumbFilename);
+                    $game->setThumbnail($newThumbFilename);
+                } catch (FileException $e) {
+                    $this->addFlash('error', 'Failed to upload thumbnail.');
+                }
+            }
+
             // Ensure the visibility is set before persisting
             if (null === $game->getVisibility()) {
-                $game->setVisibility('public');  // Default visibility (if necessary)
+                $game->setVisibility('public');
             }
 
+            // Set the game owner and save it to the DB
+            $game->setUser ($this->getUser ());
+            $entityManager->persist($game);
+            $entityManager->flush();
+
+            $this->addFlash('success', 'Game uploaded successfully!');
+            return $this->redirectToRoute('game_list');
         }
 
-
-        // Set the game owner and save it to the DB
-        $game->setUser($this->getUser());
-        $entityManager->persist($game);
-        $entityManager->flush();
-
-        $this->addFlash('success', 'Game uploaded successfully!');
-        return $this->redirectToRoute('game_list');
+        return $this->render('game/upload.html.twig', [
+            'form' => $form->createView(),
+        ]);
     }
-
-    return $this->render('game/upload.html.twig', [
-        'form' => $form->createView(),
-    ]);
-}
-
-
 }

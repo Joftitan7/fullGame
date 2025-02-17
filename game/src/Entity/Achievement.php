@@ -11,7 +11,8 @@ class Achievement
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    private ?int $id = null;
+    /** @var int|null */
+    private ?int $id = null; // Keep this as is, it's necessary for Doctrine
 
     #[ORM\Column(length: 255)]
     private ?string $title = null;
@@ -21,7 +22,7 @@ class Achievement
 
     #[ORM\ManyToOne(inversedBy: 'achievements')]
     #[ORM\JoinColumn(nullable: false)]
-    private ?User $user = null;
+    private ?User  $user = null;
 
     public function getId(): ?int
     {
@@ -36,7 +37,6 @@ class Achievement
     public function setTitle(string $title): static
     {
         $this->title = $title;
-
         return $this;
     }
 
@@ -48,19 +48,17 @@ class Achievement
     public function setAchievedAt(\DateTimeImmutable $achievedAt): static
     {
         $this->achievedAt = $achievedAt;
-
         return $this;
     }
 
-    public function getUser(): ?User
+    public function getUser (): ?User 
     {
         return $this->user;
     }
 
-    public function setUser(?User $user): static
+    public function setUser (?User  $user): static
     {
         $this->user = $user;
-
         return $this;
     }
 }

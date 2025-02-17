@@ -34,7 +34,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[Assert\NotBlank]
     private ?string $familyName = null;
 
-    #[ORM\Column(type: 'string', length: 20, unique: true, nullable: false)]
+    #[ORM\Column(type: 'string', length: 20, unique: true)]
     #[Assert\NotBlank]
     #[Assert\Regex(pattern: "/^\+?\d{10,15}$/", message: "Invalid phone number.")]
     private ?string $phone = null;
@@ -58,18 +58,15 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(type: 'string', length: 255, nullable: true)]
     private ?string $profilePhoto = null;
 
-    #[ORM\OneToMany(mappedBy: 'fromUser', targetEntity: FriendRequest::class, cascade: ['remove'])]
+    #[ORM\OneToMany(mappedBy: 'fromUser ', targetEntity: FriendRequest::class, cascade: ['remove'])]
     private Collection $sentFriendRequests;
 
-    #[ORM\OneToMany(mappedBy: 'toUser', targetEntity: FriendRequest::class, cascade: ['remove'])]
+    #[ORM\OneToMany(mappedBy: 'toUser ', targetEntity: FriendRequest::class, cascade: ['remove'])]
     private Collection $receivedFriendRequests;
 
     #[ORM\OneToMany(targetEntity: Game::class, mappedBy: 'user', orphanRemoval: true)]
     private Collection $games;
 
-    /**
-     * @var Collection<int, Message>
-     */
     #[ORM\OneToMany(targetEntity: Message::class, mappedBy: 'sender', orphanRemoval: true)]
     private Collection $messages;
 
@@ -82,134 +79,23 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\InverseJoinColumn(name: 'friend_id', referencedColumnName: 'id')]
     private Collection $friendsWithMe;
 
-    /**
-     * @var Collection<int, Achievement>
-     */
     #[ORM\OneToMany(targetEntity: Achievement::class, mappedBy: 'user')]
     private Collection $achievements;
 
-    // #[ORM\Column(type: 'integer', nullable: true)]
-    // private ?int $stepsNormal = null;
-
-    // #[ORM\Column(type: 'integer', nullable: true)]
-    // private ?int $stepsHard = null;
-
-    // #[ORM\Column(type: 'integer', nullable: true)]
-    // private ?int $stepsExtreme = null;
-
     #[ORM\Column(nullable: true)]
     private ?int $stepsForNormal = null;
-    
+
     #[ORM\Column(nullable: true)]
     private ?int $stepsForHard = null;
-    
+
     #[ORM\Column(nullable: true)]
     private ?int $stepsForExtreme = null;
 
-
-
-
-
     #[ORM\ManyToMany(targetEntity: self::class)]
-#[ORM\JoinTable(name: 'user_friends')]
-#[ORM\JoinColumn(name: 'user_id', referencedColumnName: 'id')]
-#[ORM\InverseJoinColumn(name: 'friend_id', referencedColumnName: 'id')]
-private Collection $friends; // Renamed from myFriends and friendsWithMe
-
-
-// Get all friends (mutual)
-public function getFriends(): Collection
-{
-    return $this->friends;
-}
-
-// Add a friend
-public function addFriend(self $friend): static
-{
-    if (!$this->friends->contains($friend)) {
-        $this->friends->add($friend);
-        $friend->addFriend($this);  // Ensure the reverse relation is updated
-    }
-
-    return $this;
-}
-
-// Remove a friend
-public function removeFriend(self $friend): static
-{
-    if ($this->friends->contains($friend)) {
-        $this->friends->removeElement($friend);
-        $friend->removeFriend($this);  // Ensure the reverse relation is updated
-    }
-
-    return $this;
-}
-
-
-
-
-    // Getters and Setters for the new fields
-    public function getStepsNormal(): ?int
-    {
-        return $this->stepsNormal;
-    }
-
-    public function setStepsNormal(?int $stepsNormal): static
-    {
-        $this->stepsNormal = $stepsNormal;
-        return $this;
-    }
-
-    public function getStepsHard(): ?int
-    {
-        return $this->stepsHard;
-    }
-
-    public function setStepsHard(?int $stepsHard): static
-    {
-        $this->stepsHard = $stepsHard;
-        return $this;
-    }
-
-    public function getStepsExtreme(): ?int
-    {
-        return $this->stepsExtreme;
-    }
-
-    public function setStepsExtreme(?int $stepsExtreme): static
-    {
-        $this->stepsExtreme = $stepsExtreme;
-        return $this;
-    }
-
-    // ✅ Get all friends (mutual)
-    // public function getFriends(): Collection
-    // {
-    //     return new ArrayCollection(
-    //         array_merge($this->myFriends->toArray(), $this->friendsWithMe->toArray())
-    //     );
-    // }
-
-    // ✅ Add a friend
-    // public function addFriend(self $friend): static
-    // {
-    //     if (!$this->myFriends->contains($friend)) {
-    //         $this->myFriends->add($friend);
-    //         $friend->friendsWithMe->add($this);
-    //     }
-    //     return $this;
-    // }
-
-    // ✅ Remove a friend
-    // public function removeFriend(self $friend): static
-    // {
-    //     if ($this->myFriends->contains($friend)) {
-    //         $this->myFriends->removeElement($friend);
-    //         $friend->friendsWithMe->removeElement($this);
-    //     }
-    //     return $this;
-    // }
-
+    #[ORM\JoinTable(name: 'user_friends')]
+    #[ORM\JoinColumn(name: 'user_id', referencedColumnName: 'id')]
+    #[ORM\InverseJoinColumn(name: 'friend_id', referencedColumnName: 'id')]
+    private Collection $friends;
 
     public function __construct()
     {
@@ -222,6 +108,8 @@ public function removeFriend(self $friend): static
         $this->achievements = new ArrayCollection();
         $this->friends = new ArrayCollection();
     }
+
+    // Getters and Setters
 
     public function getId(): ?int
     {
@@ -335,7 +223,7 @@ public function removeFriend(self $friend): static
 
     public function getUserIdentifier(): string
     {
-        return (string) $this->email; // Change from email to username
+        return (string) $this->email;
     }
 
     public function getProfilePhoto(): ?string
@@ -368,7 +256,7 @@ public function removeFriend(self $friend): static
     {
         if (!$this->games->contains($game)) {
             $this->games->add($game);
-            $game->setUser($this);
+            $game->setUser ($this);
         }
         return $this;
     }
@@ -376,16 +264,13 @@ public function removeFriend(self $friend): static
     public function removeGame(Game $game): static
     {
         if ($this->games->removeElement($game)) {
-            if ($game->getUser() === $this) {
-                $game->setUser(null);
+            if ($game->getUser () === $this) {
+                $game->setUser (null);
             }
         }
         return $this;
     }
 
-    /**
-     * @return Collection<int, Message>
-     */
     public function getMessages(): Collection
     {
         return $this->messages;
@@ -397,25 +282,19 @@ public function removeFriend(self $friend): static
             $this->messages->add($message);
             $message->setSender($this);
         }
-
         return $this;
     }
 
     public function removeMessage(Message $message): static
     {
         if ($this->messages->removeElement($message)) {
-            // set the owning side to null (unless already changed)
             if ($message->getSender() === $this) {
                 $message->setSender(null);
             }
         }
-
         return $this;
     }
 
-    /**
-     * @return Collection<int, Achievement>
-     */
     public function getAchievements(): Collection
     {
         return $this->achievements;
@@ -425,33 +304,29 @@ public function removeFriend(self $friend): static
     {
         if (!$this->achievements->contains($achievement)) {
             $this->achievements->add($achievement);
-            $achievement->setUser($this);
+            $achievement->setUser ($this);
         }
-
         return $this;
     }
 
     public function removeAchievement(Achievement $achievement): static
     {
         if ($this->achievements->removeElement($achievement)) {
-            // set the owning side to null (unless already changed)
-            if ($achievement->getUser() === $this) {
-                $achievement->setUser(null);
+            if ($achievement->getUser () === $this) {
+                $achievement->setUser (null);
             }
         }
-
         return $this;
     }
 
-    public function getStepsForNormal(): ?int
+    public function getStepsForNormal (): ?int
     {
         return $this->stepsForNormal;
     }
 
-    public function setStepsForNormal(int $stepsForNormal): static
+    public function setStepsForNormal(?int $stepsForNormal): static
     {
         $this->stepsForNormal = $stepsForNormal;
-
         return $this;
     }
 
@@ -460,10 +335,9 @@ public function removeFriend(self $friend): static
         return $this->stepsForHard;
     }
 
-    public function setStepsForHard(int $stepsForHard): static
+    public function setStepsForHard(?int $stepsForHard): static
     {
         $this->stepsForHard = $stepsForHard;
-
         return $this;
     }
 
@@ -472,10 +346,32 @@ public function removeFriend(self $friend): static
         return $this->stepsForExtreme;
     }
 
-    public function setStepsForExtreme(int $stepsForExtreme): static
+    public function setStepsForExtreme(?int $stepsForExtreme): static
     {
         $this->stepsForExtreme = $stepsForExtreme;
+        return $this;
+    }
 
+    public function getFriends(): Collection
+    {
+        return $this->friends;
+    }
+
+    public function addFriend(self $friend): static
+    {
+        if (!$this->friends->contains($friend)) {
+            $this->friends->add($friend);
+            $friend->addFriend($this);
+        }
+        return $this;
+    }
+
+    public function removeFriend(self $friend): static
+    {
+        if ($this->friends->contains($friend)) {
+            $this->friends->removeElement($friend);
+            $friend->removeFriend($this);
+        }
         return $this;
     }
 }

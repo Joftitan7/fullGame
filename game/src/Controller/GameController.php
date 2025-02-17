@@ -15,11 +15,13 @@ use Symfony\Component\String\Slugger\SluggerInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\File\Exception\FileException;
+use App\Entity\User; // Import the User entity class
 
 #[Route('/game')]
 class GameController extends AbstractController
 {
-    private $security;
+    private Security $security;
+    private EntityManagerInterface $entityManager;
 
     public function __construct(Security $security, EntityManagerInterface $entityManager)
     {
@@ -27,138 +29,100 @@ class GameController extends AbstractController
         $this->entityManager = $entityManager;
     }
 
-    // /**
-    //  * @Route("/game/save-steps", name="save_game_steps", methods={"POST"})
-    //  */
-    // public function saveSteps(Request $request): JsonResponse
-    // {
-    //     // Get the current user
-    //     $user = $this->security->getUser();
-
-    //     // Get the data from the request
-    //     $data = json_decode($request->getContent(), true);
-
-    //     // Ensure that the difficulty and steps are provided
-    //     if (!isset($data['difficulty']) || !isset($data['steps'])) {
-    //         return new JsonResponse(['success' => false, 'message' => 'Invalid data.'], 400);
-    //     }
-
-    //     $difficulty = $data['difficulty'];
-    //     $steps = (int) $data['steps'];
-
-    //     // Update the minimum steps for the respective difficulty
-    //     switch ($difficulty) {
-    //         case 'normal':
-    //             if ($user->getStepsForNormal() === null || $steps < $user->getStepsForNormal()) {
-    //                 $user->setStepsForNormal($steps);
-    //             }
-    //             break;
-    //         case 'hard':
-    //             if ($user->getStepsForHard() === null || $steps < $user->getStepsForHard()) {
-    //                 $user->setStepsForHard($steps);
-    //             }
-    //             break;
-    //         case 'extreme':
-    //             if ($user->getStepsForExtreme() === null || $steps < $user->getStepsForExtreme()) {
-    //                 $user->setStepsForExtreme($steps);
-    //             }
-    //             break;
-    //         default:
-    //             return new JsonResponse(['success' => false, 'message' => 'Invalid difficulty.'], 400);
-    //     }
-
-    //     // Save the updated user entity
-    //     $entityManager = $this->getDoctrine()->getManager();
-    //     $entityManager->flush();
-
-    //     return new JsonResponse(['success' => true]);
-    // }
-
     #[Route('/complete', methods: ['POST'])]
-    public function completeGame(Request $request, EntityManagerInterface $em, UserInterface $user): JsonResponse
+    public function completeGame(Request $request): JsonResponse
     {
+        /** @var User|null $user */
+        $user = $this->security->getUser();
+
+        if (!$user) {
+            return new JsonResponse(['error' => 'User not authenticated'], 401);
+        }
+
         $data = json_decode($request->getContent(), true);
         $stepsTaken = $data['stepsTaken'] ?? null;
         $difficulty = $data['difficulty'] ?? null;
 
-        if (!$stepsTaken || !$difficulty) {
+        if ($stepsTaken === null || $difficulty === null) {
             return new JsonResponse(['error' => 'Steps and difficulty are required'], 400);
         }
 
         // Update the user record with the steps based on difficulty
         switch ($difficulty) {
             case 'normal':
-                $user->setStepsNormal($stepsTaken);
+                $user->setStepsForNormal($stepsTaken);
                 break;
             case 'hard':
-                $user->setStepsHard($stepsTaken);
+                $user->setStepsForHard($stepsTaken);
                 break;
             case 'extreme':
-                $user->setStepsExtreme($stepsTaken);
+                $user->setStepsForExtreme($stepsTaken);
                 break;
             default:
                 return new JsonResponse(['error' => 'Invalid difficulty'], 400);
         }
 
-        $em->persist($user);
-        $em->flush();
+        $this->entityManager->persist($user);
+        $this->entityManager->flush();
 
         return new JsonResponse(['message' => 'Game completed and steps saved'], 200);
     }
 
-
-
-    
-
-
-
     #[Route('/new', name: 'game_create')]
-    public function create(Request $request, EntityManagerInterface $entityManager, SluggerInterface $slugger): Response
-    {
-        $game = new Game();
-        $form = $this->createForm(GameFormType::class, $game);
-        $form->handleRequest($request);
+public function create(Request $request, SluggerInterface $slugger): Response
+{
+    $game = new Game();
+    $form = $this->createForm(GameFormType::class, $game);
+    $form->handleRequest($request);
 
-        if ($form->isSubmitted() && $form->isValid()) {
-            $game->setUser($this->getUser()); // Set the logged-in user
+    if ($form->isSubmitted() && $form->isValid()) {
+        /** @var User|null $user */
+        $user = $this->getUser();
 
-            // Handle file upload with image validation
-            $thumbnailFile = $form->get('thumbnail')->getData();
-            if ($thumbnailFile) {
-                $allowedMimeTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-
-                if (!in_array($thumbnailFile->getMimeType(), $allowedMimeTypes)) {
-                    $this->addFlash('error', 'Invalid file type. Only JPG, PNG, GIF, and WEBP are allowed.');
-                    return $this->redirectToRoute('game_create');
-                }
-
-                $originalFilename = pathinfo($thumbnailFile->getClientOriginalName(), PATHINFO_FILENAME);
-                $safeFilename = $slugger->slug($originalFilename);
-                $newFilename = $safeFilename . '-' . uniqid() . '.' . $thumbnailFile->guessExtension();
-
-                try {
-                    $thumbnailFile->move(
-                        $this->getParameter('thumbnails_directory'), // Configure this in services.yaml
-                        $newFilename
-                    );
-                } catch (FileException $e) {
-                    $this->addFlash('error', 'Failed to upload the image.');
-                    return $this->redirectToRoute('game_create');
-                }
-
-                $game->setThumbnail($newFilename);
-            }
-
-            $entityManager->persist($game);
-            $entityManager->flush();
-
-            return $this->redirectToRoute('game_list');
+        if ($user instanceof User) {
+            $game->setUser($user);  // Set the logged-in user as the game owner
+        } else {
+            // Handle the case where the user is not logged in or is not a valid User instance
+            return $this->redirectToRoute('game_create');  // Or return an error response
         }
 
-        return $this->render('game/create.html.twig', [
-            'form' => $form->createView(),
-        ]);
+        // Handle file upload with image validation
+        $thumbnailFile = $form->get('thumbnail')->getData();
+        if ($thumbnailFile) {
+            $allowedMimeTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+
+            if (!in_array($thumbnailFile->getMimeType(), $allowedMimeTypes, true)) {
+                $this->addFlash('error', 'Invalid file type. Only JPG, PNG, GIF, and WEBP are allowed.');
+                return $this->redirectToRoute('game_create');
+            }
+
+            $originalFilename = pathinfo($thumbnailFile->getClientOriginalName(), PATHINFO_FILENAME);
+            $safeFilename = $slugger->slug($originalFilename);
+            $newFilename = $safeFilename . '-' . uniqid() . '.' . $thumbnailFile->guessExtension();
+
+            try {
+                $thumbnailFile->move(
+                    $this->getParameter('thumbnails_directory'), // Configure this in services.yaml
+                    $newFilename
+                );
+            } catch (FileException $e) {
+                $this->addFlash('error', 'Failed to upload the image.');
+                return $this->redirectToRoute('game_create');
+            }
+
+            $game->setThumbnail($newFilename);
+        }
+
+        $this->entityManager->persist($game);
+        $this->entityManager->flush();
+
+        return $this->redirectToRoute('game_list');
     }
+
+    return $this->render('game/create.html.twig', [
+        'form' => $form->createView(),
+    ]);
+}
 
     #[Route('/', name: 'game_list')]
     public function list(GameRepository $gameRepository): Response
@@ -170,22 +134,19 @@ class GameController extends AbstractController
         ]);
     }
 
-    // src/Controller/GameController.php
+    #[Route('/games', name: 'game_public_list')]
+    public function publicGames(GameRepository $gameRepository): Response
+    {
+        // Fetch public games
+        $games = $gameRepository->findBy(['visibility' => 'public']);
 
-#[Route('/games', name: 'game_public_list')]
-public function publicGames(GameRepository $gameRepository): Response
-{
-    // Fetch public games
-    $games = $gameRepository->findBy(['visibility' => 'public']);
-
-    return $this->render('game/public_list.html.twig', [
-        'games' => $games,
-    ]);
-}
-
+        return $this->render('game/public_list.html.twig', [
+            'games' => $games,
+        ]);
+    }
 
     #[Route('/edit/{id}', name: 'game_edit')]
-    public function edit(Game $game, Request $request, EntityManagerInterface $entityManager, SluggerInterface $slugger): Response
+    public function edit(Game $game, Request $request, SluggerInterface $slugger): Response
     {
         if ($game->getUser() !== $this->getUser()) {
             throw $this->createAccessDeniedException();
@@ -199,7 +160,7 @@ public function publicGames(GameRepository $gameRepository): Response
             if ($thumbnailFile) {
                 $allowedMimeTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
 
-                if (!in_array($thumbnailFile->getMimeType(), $allowedMimeTypes)) {
+                if (!in_array($thumbnailFile->getMimeType(), $allowedMimeTypes, true)) {
                     $this->addFlash('error', 'Invalid file type. Only JPG, PNG, GIF, and WEBP are allowed.');
                     return $this->redirectToRoute('game_edit', ['id' => $game->getId()]);
                 }
@@ -221,7 +182,7 @@ public function publicGames(GameRepository $gameRepository): Response
                 $game->setThumbnail($newFilename);
             }
 
-            $entityManager->flush();
+            $this->entityManager->flush();
 
             return $this->redirectToRoute('game_list');
         }
@@ -232,25 +193,26 @@ public function publicGames(GameRepository $gameRepository): Response
     }
 
     #[Route('/delete/{id}', name: 'game_delete')]
-    public function delete(Game $game, EntityManagerInterface $entityManager): Response
+    public function delete(Game $game): Response
     {
         if ($game->getUser() !== $this->getUser()) {
             throw $this->createAccessDeniedException();
         }
 
-        $entityManager->remove($game);
-        $entityManager->flush();
+        $this->entityManager->remove($game);
+        $this->entityManager->flush();
 
         return $this->redirectToRoute('game_list');
     }
 
     #[Route('/game/{gameId}', name: 'game_play')]
-public function play(int $gameId, GameRepository $gameRepo): Response
-{
-    $game = $gameRepo->find($gameId);
-    // Redirect to the game's page
-    return $this->render('game/play.html.twig', ['game' => $game]);
-}
-}
+    public function play(int $gameId, GameRepository $gameRepo): Response
+    {
+        $game = $gameRepo->find($gameId);
+        if (!$game) {
+            throw $this->createNotFoundException('Game not found');
+        }
 
-
+        return $this->render('game/play.html.twig', ['game' => $game]);
+    }
+}

@@ -11,17 +11,16 @@ class FriendRequest
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    private ?int $id = null;
-
-    
-
-    #[ORM\ManyToOne]
-    #[ORM\JoinColumn(nullable: false)]
-    private ?User $fromUser = null;
+    /** @var int|null */
+    private ?int $id = null; // Keep this as is, it's necessary for Doctrine
 
     #[ORM\ManyToOne]
     #[ORM\JoinColumn(nullable: false)]
-    private ?User $toUser = null;
+    private ?User  $fromUser  = null;
+
+    #[ORM\ManyToOne]
+    #[ORM\JoinColumn(nullable: false)]
+    private ?User  $toUser  = null;
 
     #[ORM\Column(length: 10)]
     private string $status = 'pending';  // Possible values: 'pending', 'accepted', 'declined'
@@ -39,27 +38,25 @@ class FriendRequest
         return $this->id;
     }
 
-    public function getFromUser(): ?User
+    public function getFromUser (): ?User 
     {
-        return $this->fromUser;
+        return $this->fromUser ;
     }
 
-    public function setFromUser(?User $fromUser): static
+    public function setFromUser (?User  $fromUser ): static
     {
-        $this->fromUser = $fromUser;
-
+        $this->fromUser  = $fromUser ;
         return $this;
     }
 
-    public function getToUser(): ?User
+    public function getToUser (): ?User 
     {
-        return $this->toUser;
+        return $this->toUser ;
     }
 
-    public function setToUser(?User $toUser): static
+    public function setToUser (?User  $toUser ): static
     {
-        $this->toUser = $toUser;
-
+        $this->toUser  = $toUser ;
         return $this;
     }
 
@@ -84,6 +81,4 @@ class FriendRequest
         $this->status = $status;
         return $this;
     }
-
-    
 }

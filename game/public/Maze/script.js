@@ -177,6 +177,9 @@ function drawMaze() {
         ctx.fillStyle = cell ? 'black' : 'white';
         ctx.fillRect(j * cellSize, i * cellSize, cellSize, cellSize);
     }));
+
+    console.log(`Redrawing maze, player at (${player.x}, ${player.y})`);
+
     if (powers.foresight.active) {
         ctx.fillStyle = 'rgba(0, 255, 0, 0.5)';
         pathToExit.forEach(({ x, y }) => ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize));
@@ -198,7 +201,7 @@ function movePlayer(dx, dy) {
     }
     console.log(`New position: (${player.x}, ${player.y})`);
     steps++;
-    checkAchievements(); // <-- Call this here
+    // checkAchievements(); // <-- Call this here
 
     document.getElementById('steps').textContent = steps; // Update step counter
     drawMaze();

@@ -12,7 +12,8 @@ class Message
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    private ?int $id = null;
+    /** @var int|null */
+    private ?int $id = null; // Keep this as is, it's necessary for Doctrine
 
     #[ORM\Column(type: Types::TEXT)]
     private ?string $content = null;
@@ -22,11 +23,11 @@ class Message
 
     #[ORM\ManyToOne(inversedBy: 'messages')]
     #[ORM\JoinColumn(nullable: false)]
-    private ?User $sender = null;
+    private ?User  $sender = null;
 
     #[ORM\ManyToOne(inversedBy: 'messages')]
     #[ORM\JoinColumn(nullable: false)]
-    private ?User $receiver = null;
+    private ?User  $receiver = null;
 
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $status = null;
@@ -39,7 +40,7 @@ class Message
     private bool $read = false;
 
     #[ORM\Column(type: 'boolean', nullable: true)]
-    private ?bool $deletedBySender = null; // FIXED: Must be null by default
+    private ?bool $deletedBySender = null;
 
     #[ORM\ManyToOne]
     #[ORM\JoinColumn(nullable: true)]
@@ -118,23 +119,23 @@ class Message
         return $this;
     }
 
-    public function getSender(): ?User
+    public function getSender(): ?User 
     {
         return $this->sender;
     }
 
-    public function setSender(?User $sender): static
+    public function setSender(?User  $sender): static
     {
         $this->sender = $sender;
         return $this;
     }
 
-    public function getReceiver(): ?User
+    public function getReceiver(): ?User 
     {
         return $this->receiver;
     }
 
-    public function setReceiver(?User $receiver): static
+    public function setReceiver(?User  $receiver): static
     {
         $this->receiver = $receiver;
         return $this;

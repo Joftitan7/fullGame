@@ -12,46 +12,53 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 
 class UserSearchController extends AbstractController
 {
-
-
     #[Route('/send_friend_request/{id}', name: 'send_friend_request')]
-public function sendFriendRequest(User $recipient, EntityManagerInterface $em): Response
-{
-    $user = $this->getUser();
+    public function sendFriendRequest(User $recipient, EntityManagerInterface $em): Response
+    {
+        $user = $this->getUser();
 
-    // Check if a friend request already exists
-    $existingRequest = $em->getRepository(FriendRequest::class)
-        ->findOneBy(['fromUser' => $user, 'toUser' => $recipient]);
+        if (!$user instanceof User) {
+            return $this->redirectToRoute('user_login');
+        }
 
-       
+        if ($user === $recipient) {
+            $this->addFlash('error', 'You cannot send a friend request to yourself.');
+            return $this->redirectToRoute('user_search');
+        }
 
-    if ($existingRequest) {
-        $this->addFlash('error', 'You have already sent a friend request to this user.');
-    } else {
-        // Create a new friend request
-        $friendRequest = new FriendRequest();
-        $friendRequest->setFromUser($user);
-        $friendRequest->setToUser($recipient);
+        // Check if a friend request already exists
+        $existingRequest = $em->getRepository(FriendRequest::class)
+            ->findOneBy(['fromUser' => $user, 'toUser' => $recipient]);
 
-        $em->persist($friendRequest);
-        $em->flush();
+        if ($existingRequest) {
+            $this->addFlash('error', 'You have already sent a friend request to this user.');
+        } else {
+            // Create a new friend request
+            $friendRequest = new FriendRequest();
+            $friendRequest->setFromUser($user);
+            $friendRequest->setToUser($recipient);
+            $friendRequest->setStatus('pending');
 
-        $this->addFlash('success', 'Friend request sent!');
+            $em->persist($friendRequest);
+            $em->flush();
+
+            $this->addFlash('success', 'Friend request sent!');
+        }
+
+        return $this->redirectToRoute('user_search');
     }
 
-    return $this->redirectToRoute('user_search');
-}
     #[Route('/search', name: 'user_search')]
     public function search(Request $request, EntityManagerInterface $em): Response
     {
-        $query = $request->query->get('q');  // Get the search query parameter
+        $query = $request->query->get('q'); // Get the search query parameter
         $users = [];
 
         if ($query) {
             $users = $em->getRepository(User::class)
                 ->createQueryBuilder('u')
-                ->where('u.username LIKE :query')
-                ->setParameter('query', '%'.$query.'%')
+                ->where('u.username LIKE :query OR u.email LIKE :query')
+                ->setParameter('query', '%' . $query . '%')
                 ->getQuery()
                 ->getResult();
         }
