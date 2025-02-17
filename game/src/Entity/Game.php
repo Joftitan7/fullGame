@@ -43,8 +43,6 @@ class Game
      */
     private ?string $gameFile = null;
 
-    
-
     public function __construct()
     {
         $this->apiKey = bin2hex(random_bytes(16)); // Generates a secure API key

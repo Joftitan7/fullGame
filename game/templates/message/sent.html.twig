@@ -1,0 +1,23 @@
+{# templates/message/sent.html.twig #}
+
+{% extends 'base.html.twig' %}
+
+{% block title %}Sent Messages{% endblock %}
+
+{% block body %}
+    <h1>Sent Messages</h1>
+
+    <ul>
+        {% for message in messages %}
+            <li>
+                <strong>To:</strong> {{ message.receiver.username }}<br>
+                <strong>Content:</strong> {{ message.content }}<br>
+                <strong>Sent on:</strong> {{ message.createdAt|date('Y-m-d H:i:s') }}
+            </li>
+        {% else %}
+            <li>No sent messages yet.</li>
+        {% endfor %}
+    </ul>
+
+    <a href="{{ path('message_send') }}">Send a New Message</a>
+{% endblock %}

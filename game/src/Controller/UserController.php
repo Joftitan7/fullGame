@@ -91,6 +91,7 @@ public function changePassword(Request $request, UserPasswordHasherInterface $pa
         return $this->redirectToRoute('user_login');
     }
 
+
     if ($request->isMethod('POST')) {
         $oldPassword = $request->request->get('old_password');
         $newPassword = $request->request->get('new_password');
@@ -112,5 +113,59 @@ public function changePassword(Request $request, UserPasswordHasherInterface $pa
 
     return $this->render('user/change_password.html.twig');
 }
+
+#[Route('/search', name: 'user_search')]
+public function search(Request $request, EntityManagerInterface $em): Response
+{
+    $query = $request->query->get('q'); // Get the search query from URL
+    $users = [];
+
+    if ($query) {
+        $users = $em->getRepository(User::class)->createQueryBuilder('u')
+            ->where('u.username LIKE :query OR u.email LIKE :query')
+            ->setParameter('query', "%{$query}%")
+            ->getQuery()
+            ->getResult();
+    }
+
+    return $this->render('user/search.html.twig', [
+        'users' => $users,
+        'query' => $query,
+    ]);
+}
+
+#[Route('/send-friend-request/{id}', name: 'send_friend_request')]
+public function sendFriendRequest(User $user, EntityManagerInterface $em): Response
+{
+    $currentUser = $this->getUser();
+
+    if (!$currentUser) {
+        return $this->redirectToRoute('user_login');
+    }
+
+    // Check if request already exists
+    $existingRequest = $em->getRepository(FriendRequest::class)->findOneBy([
+        'fromUser' => $currentUser,
+        'toUser' => $user,
+    ]);
+
+    if ($existingRequest) {
+        $this->addFlash('info', 'Friend request already sent.');
+        return $this->redirectToRoute('user_search');
+    }
+
+    // Create new friend request
+    $friendRequest = new FriendRequest();
+    $friendRequest->setFromUser($currentUser);
+    $friendRequest->setToUser($user);
+    $friendRequest->setStatus('pending');
+
+    $em->persist($friendRequest);
+    $em->flush();
+
+    $this->addFlash('success', 'Friend request sent successfully!');
+    return $this->redirectToRoute('user_search');
+}
+
 
 }

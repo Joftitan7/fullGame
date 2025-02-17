@@ -1,0 +1,8 @@
+{# templates/message/view.html.twig #}
+{% block body %}
+    <h1>{{ message.content }}</h1>
+
+    {% if message.gameChallenge %}
+        <a href="{{ path('game_play', {'gameId': message.gameChallenge.id}) }}">Challenge Accepted! Play Game</a>
+    {% endif %}
+{% endblock %}

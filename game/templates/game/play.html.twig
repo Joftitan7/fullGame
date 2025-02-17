@@ -1,0 +1,17 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Play Game{% endblock %}
+
+{% block body %}
+    <h1>Game Challenge</h1>
+
+    {% if game %}
+        <p>You have been challenged to play <strong>{{ game.name }}</strong>!</p>
+        <p>Created by: {{ game.creator.username }}</p>
+        <p>Challenge Date: {{ game.createdAt|date('d-m-Y H:i') }}</p>
+
+        <a href="{{ game.locationUrl }}" class="btn btn-primary" target="_blank">Play Now</a>
+    {% else %}
+        <p>Invalid game challenge.</p>
+    {% endif %}
+{% endblock %}

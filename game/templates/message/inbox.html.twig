@@ -1,0 +1,22 @@
+{# templates/message/inbox.html.twig #}
+{% extends 'base.html.twig' %}
+
+{% block title %}Inbox{% endblock %}
+
+{% block body %}
+    <h1>Inbox</h1>
+
+    <ul>
+        {% for message in messages %}
+            <li>
+                <strong>{{ message.sender.username }}</strong>: {{ message.content }} 
+                {% if message.parentMessage %}
+                    <ul>
+                        <li>Replied to: {{ message.parentMessage.content }}</li>
+                    </ul>
+                {% endif %}
+                <a href="{{ path('message_view', {'id': message.id}) }}">View</a>
+            </li>
+        {% endfor %}
+    </ul>
+{% endblock %}

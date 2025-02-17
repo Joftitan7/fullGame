@@ -67,11 +67,58 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\OneToMany(targetEntity: Game::class, mappedBy: 'user', orphanRemoval: true)]
     private Collection $games;
 
+    /**
+     * @var Collection<int, Message>
+     */
+    #[ORM\OneToMany(targetEntity: Message::class, mappedBy: 'sender', orphanRemoval: true)]
+    private Collection $messages;
+
+    #[ORM\ManyToMany(targetEntity: self::class, mappedBy: 'friendsWithMe')]
+    private Collection $myFriends;
+
+    #[ORM\ManyToMany(targetEntity: self::class)]
+    #[ORM\JoinTable(name: 'user_friends')]
+    #[ORM\JoinColumn(name: 'user_id', referencedColumnName: 'id')]
+    #[ORM\InverseJoinColumn(name: 'friend_id', referencedColumnName: 'id')]
+    private Collection $friendsWithMe;
+
+    // ✅ Get all friends (mutual)
+    public function getFriends(): Collection
+    {
+        return new ArrayCollection(
+            array_merge($this->myFriends->toArray(), $this->friendsWithMe->toArray())
+        );
+    }
+
+    // ✅ Add a friend
+    public function addFriend(self $friend): static
+    {
+        if (!$this->myFriends->contains($friend)) {
+            $this->myFriends->add($friend);
+            $friend->friendsWithMe->add($this);
+        }
+        return $this;
+    }
+
+    // ✅ Remove a friend
+    public function removeFriend(self $friend): static
+    {
+        if ($this->myFriends->contains($friend)) {
+            $this->myFriends->removeElement($friend);
+            $friend->friendsWithMe->removeElement($this);
+        }
+        return $this;
+    }
+
+
     public function __construct()
     {
         $this->games = new ArrayCollection();
         $this->sentFriendRequests = new ArrayCollection();
         $this->receivedFriendRequests = new ArrayCollection();
+        $this->messages = new ArrayCollection();
+        $this->myFriends = new ArrayCollection();
+        $this->friendsWithMe = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -231,6 +278,36 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
                 $game->setUser(null);
             }
         }
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, Message>
+     */
+    public function getMessages(): Collection
+    {
+        return $this->messages;
+    }
+
+    public function addMessage(Message $message): static
+    {
+        if (!$this->messages->contains($message)) {
+            $this->messages->add($message);
+            $message->setSender($this);
+        }
+
+        return $this;
+    }
+
+    public function removeMessage(Message $message): static
+    {
+        if ($this->messages->removeElement($message)) {
+            // set the owning side to null (unless already changed)
+            if ($message->getSender() === $this) {
+                $message->setSender(null);
+            }
+        }
+
         return $this;
     }
 }

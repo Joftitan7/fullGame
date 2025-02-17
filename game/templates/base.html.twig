@@ -14,7 +14,24 @@
     {% endblock %}
 </head>
 <body>
-    {% block body %}{% endblock %}
+
+    <!-- ✅ Place the navbar here so it appears on all pages -->
+    <nav>
+        <a href="{{ path('user_search') }}">Search Users</a> |
+        <a href="{{ path('user_profile') }}">Profile</a> |
+        <a href="{{ path('app_logout') }}">Logout</a>
+        <a href="{{ path('app_home_page') }}">homepage</a>
+
+        
+            <a href="{{ path('message_inbox') }}">Inbox</a>
+            <a href="{{ path('message_send') }}">Send Message</a>
+            <a href="{{ path('message_sent') }}">Sent Messages</a>
+        
+    </nav>
+
+    <div class="container">
+        {% block body %}{% endblock %}
+    </div>
 
     {% block javascripts %}
         {{ encore_entry_script_tags('app') }}

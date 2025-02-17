@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Maze Game</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="characterSelection">
+        <h2>Choose Your Character</h2>
+        <div id="emojiList"></div>
+        <button id="startGameButton" disabled>Start Game</button>
+    </div>
+    <canvas id="mazeCanvas"></canvas>
+    <div id="controls">
+        <button id="foresight">Use Foresight</button>
+        <button id="randomize">Randomize Maze</button>
+        <button id="intangibility">Use Intangibility</button>
+        <p>Steps: <span id="steps">0</span></p>
+    </div>
+    <div id="message" style="display: none;">
+        <h1 id="gameMessage">You Win!</h1>
+        <button onclick="initGame()">Play Again</button>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>

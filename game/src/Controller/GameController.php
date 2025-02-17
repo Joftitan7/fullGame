@@ -147,6 +147,14 @@ public function publicGames(GameRepository $gameRepository): Response
 
         return $this->redirectToRoute('game_list');
     }
+
+    #[Route('/game/{gameId}', name: 'game_play')]
+public function play(int $gameId, GameRepository $gameRepo): Response
+{
+    $game = $gameRepo->find($gameId);
+    // Redirect to the game's page
+    return $this->render('game/play.html.twig', ['game' => $game]);
+}
 }
 
 
